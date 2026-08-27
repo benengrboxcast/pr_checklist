@@ -36,8 +36,12 @@ func NewRouter(s *Server, staticFS fs.FS) http.Handler {
 
 	mux.HandleFunc("POST /api/import", s.handleImport)
 
+	mux.HandleFunc("GET /api/viewer", s.handleGetViewer)
+	mux.HandleFunc("GET /api/orgs", s.handleGetOrgs)
+
 	mux.HandleFunc("GET /api/config", s.handleGetConfig)
 	mux.HandleFunc("PUT /api/config", s.handlePutConfig)
+	mux.HandleFunc("POST /api/config/auto-generate-titles", s.handleAutoGenerateTagTitles)
 
 	mux.Handle("/", http.FileServerFS(staticFS))
 

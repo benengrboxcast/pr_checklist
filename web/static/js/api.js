@@ -38,6 +38,9 @@ const Api = (() => {
     removeTag: (owner, repo, number, tag) =>
       request("DELETE", `${prPath(owner, repo, number)}/tags/${encodeURIComponent(tag)}`),
     getConfig: () => request("GET", "/api/config"),
-    putConfig: (importRepos) => request("PUT", "/api/config", { importRepos }),
+    putConfig: (importRepos, importOrgs, tagTitles) => request("PUT", "/api/config", { importRepos, importOrgs, tagTitles }),
+    autoGenerateTagTitles: () => request("POST", "/api/config/auto-generate-titles"),
+    getViewer: () => request("GET", "/api/viewer"),
+    getOrgs: () => request("GET", "/api/orgs"),
   };
 })();

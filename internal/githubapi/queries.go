@@ -43,6 +43,21 @@ query ThreadComments($threadId: ID!, $cursor: String) {
   }
 }`
 
+const viewerQuery = `
+query Viewer {
+  viewer { login }
+}`
+
+const viewerOrgsQuery = `
+query ViewerOrgs($cursor: String) {
+  viewer {
+    organizations(first: 100, after: $cursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes { login }
+    }
+  }
+}`
+
 const searchOpenAuthoredQuery = `
 query ImportSearch($query: String!, $cursor: String) {
   search(query: $query, type: ISSUE, first: 50, after: $cursor) {

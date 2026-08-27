@@ -13,7 +13,7 @@ const Dashboard = (() => {
         groups.get(tag).push(pr);
       }
     }
-    const sortedTags = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    const sortedTags = Array.from(groups.keys()).sort((a, b) => TagTitles.get(a).localeCompare(TagTitles.get(b)));
     return { groups, sortedTags, untagged };
   }
 
@@ -37,15 +37,19 @@ const Dashboard = (() => {
       </div>`;
   }
 
-  function section(title, prs) {
+  // headingHtml is pre-rendered (e.g. via Render.renderTagTitleLink, which
+  // already escapes and optionally Jira-links it) rather than raw text. The
+  // section also gets its own badge aggregating every PR's status in it.
+  function section(headingHtml, prs) {
     if (prs.length === 0) return "";
-    return `<div class="tag-section"><h2>${Render.escapeHtml(title)}</h2>${prs.map(prCard).join("")}</div>`;
+    const status = Render.groupStatus(prs);
+    const badge = status ? Render.statusBadge(status) : "";
+    return `<div class="tag-section"><div class="tag-section-header"><h2>${headingHtml}</h2>${badge}</div>${prs.map(prCard).join("")}</div>`;
   }
 
   function render(prs) {
     const { groups, sortedTags, untagged } = groupByTag(prs);
     let html = `
-      <h1>PR Checklist</h1>
       <div class="toolbar">
         <form id="add-pr-form">
           <input type="url" id="add-pr-url" placeholder="https://github.com/owner/repo/pull/123" required />
@@ -62,8 +66,8 @@ const Dashboard = (() => {
     if (prs.length === 0) {
       html += `<p class="empty">No PRs tracked yet. Paste a PR URL above, or use Import.</p>`;
     } else {
-      for (const tag of sortedTags) html += section(tag, groups.get(tag));
-      html += section("Untagged", untagged);
+      for (const tag of sortedTags) html += section(Render.renderTagTitleLink(tag), groups.get(tag));
+      html += section(Render.escapeHtml("Untagged"), untagged);
     }
 
     document.getElementById("app").innerHTML = html;
@@ -90,6 +94,7 @@ const Dashboard = (() => {
       showError("");
       try {
         await Api.addPR(input.value.trim());
+        await TagTitles.load(); // pick up any title auto-derived from this PR's branch name
         await reload();
       } catch (err) {
         showError(err.message);
@@ -100,6 +105,7 @@ const Dashboard = (() => {
       showError("");
       try {
         const result = await Api.importPRs();
+        await TagTitles.load(); // pick up any titles auto-derived from imported PRs' branch names
         await reload();
         if (result.errors && result.errors.length > 0) {
           showError(`Import finished with errors: ${result.errors.join("; ")}`);
@@ -120,7 +126,7 @@ const Dashboard = (() => {
       }
     });
 
-    document.getElementById("btn-settings").addEventListener("click", toggleSettings);
+    document.getElementById("btn-settings").addEventListener("click", Settings.toggle);
 
     document.querySelectorAll(".js-remove").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -138,41 +144,5 @@ const Dashboard = (() => {
     });
   }
 
-  async function toggleSettings() {
-    const panel = document.getElementById("settings-panel");
-    if (panel.style.display !== "none") {
-      panel.style.display = "none";
-      panel.innerHTML = "";
-      return;
-    }
-    try {
-      const cfg = await Api.getConfig();
-      panel.innerHTML = `
-        <div class="side-panel">
-          <h3>Import repo allow-list</h3>
-          <p class="last-synced">One "owner/repo" per line. Import only searches these repos for your open PRs.</p>
-          <textarea id="import-repos" rows="4" style="width:100%">${Render.escapeHtml((cfg.importRepos || []).join("\n"))}</textarea>
-          <div style="margin-top:8px"><button id="save-config" class="primary">Save</button></div>
-        </div>`;
-      panel.style.display = "block";
-      document.getElementById("save-config").addEventListener("click", async () => {
-        const repos = document
-          .getElementById("import-repos")
-          .value.split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        try {
-          await Api.putConfig(repos);
-          panel.style.display = "none";
-          panel.innerHTML = "";
-        } catch (err) {
-          showError(err.message);
-        }
-      });
-    } catch (err) {
-      showError(err.message);
-    }
-  }
-
-  return { reload };
+  return { reload, showError };
 })();

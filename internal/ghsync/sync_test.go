@@ -8,6 +8,39 @@ import (
 	"github.com/benanderson/pr-checklist/internal/store"
 )
 
+func TestFillMissingTagTitles_DerivesFromUnderscoreBranches(t *testing.T) {
+	cfg := store.Config{}
+	recs := []store.PRRecord{
+		{HeadRefName: "EMBED-2575_Start_Stop_Extend"},
+		{HeadRefName: "EMBED-1234-fix-thing"}, // hyphen convention, no title derivable
+		{HeadRefName: "main"},                 // no EMBED tag at all
+	}
+
+	updated, added := FillMissingTagTitles(cfg, recs)
+	if added != 1 {
+		t.Fatalf("expected 1 title added, got %d (%v)", added, updated.TagTitles)
+	}
+	if got := updated.TagTitles["EMBED-2575"]; got != "Start Stop Extend" {
+		t.Errorf("EMBED-2575 title = %q, want %q", got, "Start Stop Extend")
+	}
+	if _, exists := updated.TagTitles["EMBED-1234"]; exists {
+		t.Errorf("expected no title for EMBED-1234 (hyphen branch), got %q", updated.TagTitles["EMBED-1234"])
+	}
+}
+
+func TestFillMissingTagTitles_NeverOverwritesExistingTitle(t *testing.T) {
+	cfg := store.Config{TagTitles: map[string]string{"EMBED-2575": "My Custom Title"}}
+	recs := []store.PRRecord{{HeadRefName: "EMBED-2575_Some_Different_Branch_Text"}}
+
+	updated, added := FillMissingTagTitles(cfg, recs)
+	if added != 0 {
+		t.Fatalf("expected 0 titles added (already set), got %d", added)
+	}
+	if got := updated.TagTitles["EMBED-2575"]; got != "My Custom Title" {
+		t.Errorf("existing title was overwritten: got %q", got)
+	}
+}
+
 func TestMarkResolvedLocallyThenMergeRefresh_OwnReplyDoesNotRevert(t *testing.T) {
 	existing := store.PRRecord{
 		Owner: "acme", Repo: "widgets", Number: 1,

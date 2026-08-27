@@ -45,5 +45,7 @@ type Comment struct {
 
 // Config is the user-editable import allow-list, stored separately from PR records.
 type Config struct {
-	ImportRepos []string `json:"importRepos"`
+	ImportRepos []string          `json:"importRepos"`
+	ImportOrgs  []string          `json:"importOrgs"` // org logins to import every authored-open PR from
+	TagTitles   map[string]string `json:"tagTitles"`  // tag -> custom display title, shown instead of the raw tag
 }

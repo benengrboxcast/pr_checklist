@@ -27,6 +27,18 @@ body {
   padding: 24px 16px 64px;
 }
 
+#site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 16px 0;
+}
+
+#site-title { font-weight: 700; }
+#viewer-badge { font-size: 13px; color: var(--text-dim); }
+
 a { color: var(--accent); }
 
 h1, h2, h3 { line-height: 1.25; }
@@ -68,7 +80,8 @@ button.danger:hover { border-color: var(--red); }
 button.primary { background: var(--accent); border-color: var(--accent); color: white; }
 
 .tag-section { margin-bottom: 28px; }
-.tag-section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 10px; }
+.tag-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.tag-section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0; }
 
 .pr-card {
   display: flex;
@@ -95,6 +108,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  text-transform: none; /* don't inherit e.g. .tag-section h2's uppercase */
 }
 .badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 

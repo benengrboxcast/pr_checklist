@@ -32,7 +32,7 @@ func New(dataDirRoot string) (*Store, error) {
 		return nil, fmt.Errorf("creating data dir: %w", err)
 	}
 	if _, err := os.Stat(s.configPath); errors.Is(err, os.ErrNotExist) {
-		if err := s.SaveConfig(Config{ImportRepos: []string{}}); err != nil {
+		if err := s.SaveConfig(Config{ImportRepos: []string{}, ImportOrgs: []string{}, TagTitles: map[string]string{}}); err != nil {
 			return nil, fmt.Errorf("writing default config: %w", err)
 		}
 	} else if err != nil {

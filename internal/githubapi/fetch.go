@@ -143,10 +143,39 @@ func (c *Client) fetchRemainingThreadComments(ctx context.Context, threadID, cur
 	}
 }
 
+// FetchViewer returns the GitHub login the configured token authenticates as.
+func (c *Client) FetchViewer(ctx context.Context) (string, error) {
+	var resp viewerResponse
+	if err := c.Do(ctx, viewerQuery, nil, &resp); err != nil {
+		return "", fmt.Errorf("fetching viewer: %w", err)
+	}
+	return resp.Viewer.Login, nil
+}
+
 // SearchOpenAuthoredPRs finds open PRs authored by the token's own user in a
 // single repo, returning just enough to identify each PR for a follow-up FetchPR.
 func (c *Client) SearchOpenAuthoredPRs(ctx context.Context, owner, repo string) ([]PRRef, error) {
 	q := fmt.Sprintf("is:pr is:open author:@me repo:%s/%s", owner, repo)
+	refs, err := c.runOpenAuthoredSearch(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("searching %s/%s: %w", owner, repo, err)
+	}
+	return refs, nil
+}
+
+// SearchOpenAuthoredPRsInOrg finds open PRs authored by the token's own user
+// across every repo in an org, returning just enough to identify each PR for
+// a follow-up FetchPR.
+func (c *Client) SearchOpenAuthoredPRsInOrg(ctx context.Context, org string) ([]PRRef, error) {
+	q := fmt.Sprintf("is:pr is:open author:@me org:%s", org)
+	refs, err := c.runOpenAuthoredSearch(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("searching org %s: %w", org, err)
+	}
+	return refs, nil
+}
+
+func (c *Client) runOpenAuthoredSearch(ctx context.Context, q string) ([]PRRef, error) {
 	var refs []PRRef
 	var cursor string
 	for {
@@ -156,7 +185,7 @@ func (c *Client) SearchOpenAuthoredPRs(ctx context.Context, owner, repo string) 
 			vars["cursor"] = cursor
 		}
 		if err := c.Do(ctx, searchOpenAuthoredQuery, vars, &resp); err != nil {
-			return nil, fmt.Errorf("searching %s/%s: %w", owner, repo, err)
+			return nil, err
 		}
 		for _, n := range resp.Search.Nodes {
 			refs = append(refs, PRRef{
@@ -169,5 +198,30 @@ func (c *Client) SearchOpenAuthoredPRs(ctx context.Context, owner, repo string) 
 			return refs, nil
 		}
 		cursor = resp.Search.PageInfo.EndCursor
+	}
+}
+
+// FetchViewerOrgs returns the login of every organization the token's own
+// user belongs to. Requires the token to have the read:org scope for private
+// organization memberships to be visible.
+func (c *Client) FetchViewerOrgs(ctx context.Context) ([]string, error) {
+	var orgs []string
+	var cursor string
+	for {
+		var resp orgsResponse
+		vars := map[string]any{}
+		if cursor != "" {
+			vars["cursor"] = cursor
+		}
+		if err := c.Do(ctx, viewerOrgsQuery, vars, &resp); err != nil {
+			return nil, fmt.Errorf("fetching viewer organizations: %w", err)
+		}
+		for _, n := range resp.Viewer.Organizations.Nodes {
+			orgs = append(orgs, n.Login)
+		}
+		if !resp.Viewer.Organizations.PageInfo.HasNextPage {
+			return orgs, nil
+		}
+		cursor = resp.Viewer.Organizations.PageInfo.EndCursor
 	}
 }

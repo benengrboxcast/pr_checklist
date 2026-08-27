@@ -24,6 +24,12 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	if cfg.ImportRepos == nil {
 		cfg.ImportRepos = []string{}
 	}
+	if cfg.ImportOrgs == nil {
+		cfg.ImportOrgs = []string{}
+	}
+	if cfg.TagTitles == nil {
+		cfg.TagTitles = map[string]string{}
+	}
 	if err := s.Store.SaveConfig(cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

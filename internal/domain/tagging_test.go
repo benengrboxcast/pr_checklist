@@ -47,6 +47,31 @@ func TestIsEmbedTag(t *testing.T) {
 	}
 }
 
+func TestExtractEmbedTitle(t *testing.T) {
+	tests := []struct {
+		branch string
+		want   string
+		wantOk bool
+	}{
+		{"EMBED-2575_Start_Stop_Extend", "Start Stop Extend", true},
+		{"EMBED-2575_start_stop_extend", "Start stop extend", true}, // only first word forced uppercase
+		{"EMBED-7_fix", "Fix", true},
+		{"EMBED-1234-fix-thing", "", false}, // hyphen, not underscore right after the digits
+		{"EMBED-1234", "", false},           // nothing after the digits at all
+		{"EMBED-1234_", "", false},          // underscore but nothing after it
+		{"EMBED-1234___", "", false},        // only underscores after
+		{"embed-1234_lowercase_tag", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.branch, func(t *testing.T) {
+			got, ok := ExtractEmbedTitle(tc.branch)
+			if got != tc.want || ok != tc.wantOk {
+				t.Errorf("ExtractEmbedTitle(%q) = (%q, %v), want (%q, %v)", tc.branch, got, ok, tc.want, tc.wantOk)
+			}
+		})
+	}
+}
+
 func TestEnsureTagIsAdditiveAndIdempotent(t *testing.T) {
 	tags := []string{"backend"}
 	tags = EnsureTag(tags, "EMBED-1234")

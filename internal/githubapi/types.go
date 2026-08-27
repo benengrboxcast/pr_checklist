@@ -73,3 +73,16 @@ type searchResponse struct {
 		Nodes    []searchNode `json:"nodes"`
 	} `json:"search"`
 }
+
+type viewerResponse struct {
+	Viewer actor `json:"viewer"`
+}
+
+type orgsResponse struct {
+	Viewer struct {
+		Organizations struct {
+			PageInfo pageInfo `json:"pageInfo"`
+			Nodes    []actor  `json:"nodes"`
+		} `json:"organizations"`
+	} `json:"viewer"`
+}

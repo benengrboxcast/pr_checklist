@@ -15,6 +15,36 @@ import (
 // ErrThreadNotFound is returned when a requested thread ID doesn't exist on the PR.
 var ErrThreadNotFound = errors.New("thread not found")
 
+// FillMissingTagTitles derives a display title from each record's branch
+// name (the "EMBED-<n>_rest-of-name" convention) and adds it to
+// cfg.TagTitles for any tag that doesn't already have a title — it never
+// overwrites a title that's already set, whether that was typed by hand or
+// derived earlier, so re-running this (via refresh, import, or the "Auto-
+// generate" button) is always safe. Returns the updated config and how many
+// titles were newly added.
+func FillMissingTagTitles(cfg store.Config, recs []store.PRRecord) (store.Config, int) {
+	if cfg.TagTitles == nil {
+		cfg.TagTitles = map[string]string{}
+	}
+	added := 0
+	for _, rec := range recs {
+		tag, ok := domain.ExtractEmbedTag(rec.HeadRefName)
+		if !ok {
+			continue
+		}
+		if _, exists := cfg.TagTitles[tag]; exists {
+			continue
+		}
+		title, ok := domain.ExtractEmbedTitle(rec.HeadRefName)
+		if !ok {
+			continue
+		}
+		cfg.TagTitles[tag] = title
+		added++
+	}
+	return cfg, added
+}
+
 // ErrAlreadyResolvedOnGitHub is returned when trying to locally resolve a
 // thread GitHub itself already reports as resolved — a meaningless no-op.
 var ErrAlreadyResolvedOnGitHub = errors.New("thread is already resolved on github")

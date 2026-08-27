@@ -106,6 +106,7 @@ func (s *Server) handleAddPR(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	s.deriveTagTitlesFor(rec)
 	writeJSON(w, http.StatusCreated, toDetailDTO(rec))
 }
 
@@ -158,6 +159,7 @@ func (s *Server) refreshOne(r *http.Request, owner, repo string, number int) (st
 	if err := s.Store.Save(rec); err != nil {
 		return store.PRRecord{}, err
 	}
+	s.deriveTagTitlesFor(rec)
 	return rec, nil
 }
 

@@ -107,6 +107,7 @@ const Detail = (() => {
       showError("");
       try {
         await Api.refreshPR(pr.owner, pr.repo, pr.number);
+        await TagTitles.load(); // pick up any title auto-derived from this PR's branch name
         await load(pr.owner, pr.repo, pr.number);
       } catch (err) {
         showError(err.message);
