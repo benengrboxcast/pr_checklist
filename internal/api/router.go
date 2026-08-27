@@ -33,8 +33,12 @@ func NewRouter(s *Server, staticFS fs.FS) http.Handler {
 	mux.HandleFunc("POST /api/prs/{owner}/{repo}/{number}/threads/{threadId}/unresolve", s.handleUnresolveThread)
 	mux.HandleFunc("POST /api/prs/{owner}/{repo}/{number}/tags", s.handleAddTag)
 	mux.HandleFunc("DELETE /api/prs/{owner}/{repo}/{number}/tags/{tag}", s.handleRemoveTag)
+	mux.HandleFunc("POST /api/prs/{owner}/{repo}/{number}/tag-from-description", s.handleTagFromDescription)
+	mux.HandleFunc("POST /api/prs/auto-tag-from-descriptions", s.handleAutoTagFromDescriptions)
 
 	mux.HandleFunc("POST /api/import", s.handleImport)
+
+	mux.HandleFunc("GET /api/review-requests", s.handleGetReviewRequests)
 
 	mux.HandleFunc("GET /api/viewer", s.handleGetViewer)
 	mux.HandleFunc("GET /api/orgs", s.handleGetOrgs)

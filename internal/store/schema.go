@@ -16,6 +16,7 @@ type PRRecord struct {
 	ReviewDecision string `json:"reviewDecision"` // APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | ""
 	HeadRefName    string `json:"headRefName"`
 	AuthorLogin    string `json:"authorLogin"`
+	Body           string `json:"body"` // raw PR description, used to find Jira issue keys in it
 
 	Tags               []string  `json:"tags"`
 	AuthenticatedLogin string    `json:"authenticatedLogin"`

@@ -1,6 +1,6 @@
 // Shared rendering helpers used by both the dashboard and detail views.
 const Render = (() => {
-  const EMBED_TAG_RE = /^EMBED-\d+$/;
+  const JIRA_TAG_RE = /^[A-Z]{2,10}-\d+$/;
 
   function escapeHtml(str) {
     return String(str)
@@ -35,15 +35,16 @@ const Render = (() => {
   }
 
   // Renders a tag chip, showing its custom title (if set) instead of the raw
-  // tag text — hover the chip to see the raw tag. EMBED-#### tags link out to
-  // the Jira issue (keyed off the raw tag, regardless of what title is shown),
-  // whether the tag was auto-detected from a branch name or typed by hand.
+  // tag text — hover the chip to see the raw tag. Jira-shaped tags (e.g.
+  // "EMBED-1234") link out to the Jira issue (keyed off the raw tag,
+  // regardless of what title is shown), whether the tag was auto-detected
+  // from a branch/description or typed by hand.
   function renderTag(tag, opts) {
     opts = opts || {};
     const raw = escapeHtml(tag);
     const display = escapeHtml(TagTitles.get(tag));
     const removable = opts.removable ? ` <a href="#" class="tag-remove" data-tag="${raw}" title="Remove tag">×</a>` : "";
-    if (EMBED_TAG_RE.test(tag)) {
+    if (JIRA_TAG_RE.test(tag)) {
       return `<a class="tag-chip" href="https://boxcast.atlassian.net/browse/${raw}" target="_blank" rel="noopener" title="${raw}">${display}</a>${removable}`;
     }
     return `<span class="tag-chip" title="${raw}">${display}</span>${removable}`;
@@ -54,24 +55,25 @@ const Render = (() => {
     return tags.map((t) => renderTag(t, opts)).join(" ");
   }
 
-  // Renders just the raw tag identifier as a Jira link when it's an EMBED-####
-  // tag, plain text otherwise. For contexts (like the Settings label-titles
-  // editor) that show the raw tag itself rather than a full styled chip.
+  // Renders just the raw tag identifier as a Jira link when it's a
+  // Jira-shaped tag, plain text otherwise. For contexts (like the Settings
+  // label-titles editor) that show the raw tag itself rather than a full
+  // styled chip.
   function renderTagLink(tag) {
     const raw = escapeHtml(tag);
-    if (EMBED_TAG_RE.test(tag)) {
+    if (JIRA_TAG_RE.test(tag)) {
       return `<a href="https://boxcast.atlassian.net/browse/${raw}" target="_blank" rel="noopener">${raw}</a>`;
     }
     return raw;
   }
 
   // Renders a tag's display title (not the raw tag) as a Jira link when it's
-  // an EMBED-#### tag, plain text otherwise. For heading-style contexts (like
+  // a Jira-shaped tag, plain text otherwise. For heading-style contexts (like
   // dashboard tag-section headers) that show the title without chip styling.
   function renderTagTitleLink(tag) {
     const raw = escapeHtml(tag);
     const display = escapeHtml(TagTitles.get(tag));
-    if (EMBED_TAG_RE.test(tag)) {
+    if (JIRA_TAG_RE.test(tag)) {
       return `<a href="https://boxcast.atlassian.net/browse/${raw}" target="_blank" rel="noopener" title="${raw}">${display}</a>`;
     }
     return display;

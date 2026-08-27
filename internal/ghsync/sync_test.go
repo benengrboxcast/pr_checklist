@@ -41,6 +41,74 @@ func TestFillMissingTagTitles_NeverOverwritesExistingTitle(t *testing.T) {
 	}
 }
 
+func TestNewRecord_AutoTagsFromDescription(t *testing.T) {
+	rec := NewRecord("acme", "widgets", 1, githubapi.PRDetail{
+		HeadRefName:        "some-branch",
+		Body:               "Some PR body.\n\nRelevant Jira issue(s):\n- EMBED-1234\n- PROJ-42",
+		AuthenticatedLogin: "me",
+	})
+	want := map[string]bool{"EMBED-1234": true, "PROJ-42": true}
+	if len(rec.Tags) != 2 {
+		t.Fatalf("expected 2 tags from description, got %v", rec.Tags)
+	}
+	for _, tag := range rec.Tags {
+		if !want[tag] {
+			t.Errorf("unexpected tag %q", tag)
+		}
+	}
+	if rec.Body == "" {
+		t.Errorf("expected Body to be persisted on the record")
+	}
+}
+
+func TestMergeRefresh_PicksUpNewlyAddedDescriptionTags(t *testing.T) {
+	existing := store.PRRecord{Tags: []string{"backend"}}
+	refreshed := MergeRefresh(existing, githubapi.PRDetail{
+		HeadRefName: "some-branch",
+		Body:        "Relevant Jira issue(s):\nEMBED-9999",
+	})
+	found := false
+	for _, tag := range refreshed.Tags {
+		if tag == "EMBED-9999" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected EMBED-9999 to be auto-tagged from description, got %v", refreshed.Tags)
+	}
+	if len(refreshed.Tags) != 2 {
+		t.Fatalf("expected existing tag preserved alongside new one, got %v", refreshed.Tags)
+	}
+}
+
+func TestApplyDescriptionTags(t *testing.T) {
+	rec := store.PRRecord{
+		Tags: []string{"backend"},
+		Body: "Relevant Jira issue(s):\n- EMBED-1234\n- backend", // "backend" isn't jira-shaped, ignored
+	}
+	updated, added := ApplyDescriptionTags(rec)
+	if added != 1 {
+		t.Fatalf("expected 1 tag added, got %d (%v)", added, updated.Tags)
+	}
+	if len(updated.Tags) != 2 || updated.Tags[0] != "backend" || updated.Tags[1] != "EMBED-1234" {
+		t.Fatalf("unexpected tags: %v", updated.Tags)
+	}
+
+	// Re-running is a no-op (idempotent).
+	updatedAgain, addedAgain := ApplyDescriptionTags(updated)
+	if addedAgain != 0 {
+		t.Fatalf("expected re-run to add nothing, got %d (%v)", addedAgain, updatedAgain.Tags)
+	}
+}
+
+func TestApplyDescriptionTags_NoSectionIsNoop(t *testing.T) {
+	rec := store.PRRecord{Tags: []string{"backend"}, Body: "Just a normal description."}
+	updated, added := ApplyDescriptionTags(rec)
+	if added != 0 || len(updated.Tags) != 1 {
+		t.Fatalf("expected no change, got added=%d tags=%v", added, updated.Tags)
+	}
+}
+
 func TestMarkResolvedLocallyThenMergeRefresh_OwnReplyDoesNotRevert(t *testing.T) {
 	existing := store.PRRecord{
 		Owner: "acme", Repo: "widgets", Number: 1,

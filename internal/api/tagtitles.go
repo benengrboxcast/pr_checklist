@@ -7,7 +7,7 @@ import (
 	"github.com/benanderson/pr-checklist/internal/store"
 )
 
-// deriveTagTitlesFor best-effort derives and persists any missing EMBED tag
+// deriveTagTitlesFor best-effort derives and persists any missing Jira tag
 // titles implied by recs' branch names. This runs automatically after every
 // add/refresh/import so titles show up without the user needing to click
 // "Auto-generate". Failures are silently ignored — title display just falls

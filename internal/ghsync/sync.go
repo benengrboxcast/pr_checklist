@@ -16,26 +16,26 @@ import (
 var ErrThreadNotFound = errors.New("thread not found")
 
 // FillMissingTagTitles derives a display title from each record's branch
-// name (the "EMBED-<n>_rest-of-name" convention) and adds it to
-// cfg.TagTitles for any tag that doesn't already have a title — it never
-// overwrites a title that's already set, whether that was typed by hand or
-// derived earlier, so re-running this (via refresh, import, or the "Auto-
-// generate" button) is always safe. Returns the updated config and how many
-// titles were newly added.
+// name (the "<ISSUE-KEY>_rest-of-name" convention, e.g. "EMBED-1234_Fix_Thing")
+// and adds it to cfg.TagTitles for any tag that doesn't already have a title
+// — it never overwrites a title that's already set, whether that was typed
+// by hand or derived earlier, so re-running this (via refresh, import, or the
+// "Auto-generate" button) is always safe. Returns the updated config and how
+// many titles were newly added.
 func FillMissingTagTitles(cfg store.Config, recs []store.PRRecord) (store.Config, int) {
 	if cfg.TagTitles == nil {
 		cfg.TagTitles = map[string]string{}
 	}
 	added := 0
 	for _, rec := range recs {
-		tag, ok := domain.ExtractEmbedTag(rec.HeadRefName)
+		tag, ok := domain.ExtractJiraTag(rec.HeadRefName)
 		if !ok {
 			continue
 		}
 		if _, exists := cfg.TagTitles[tag]; exists {
 			continue
 		}
-		title, ok := domain.ExtractEmbedTitle(rec.HeadRefName)
+		title, ok := domain.ExtractJiraTitle(rec.HeadRefName)
 		if !ok {
 			continue
 		}
@@ -43,6 +43,26 @@ func FillMissingTagTitles(cfg store.Config, recs []store.PRRecord) (store.Config
 		added++
 	}
 	return cfg, added
+}
+
+// ApplyDescriptionTags ensures every Jira issue key found in rec's stored
+// description (its "Relevant Jira issue(s):" section, if present) is added
+// to rec.Tags. Purely additive/idempotent, and works entirely from the
+// already-stored description — no GitHub call needed — so it's safe to
+// re-run any time, including retroactively for PRs tracked before this
+// feature existed (once they've been refreshed at least once to populate
+// their description). Returns the updated record and how many tags were
+// newly added.
+func ApplyDescriptionTags(rec store.PRRecord) (store.PRRecord, int) {
+	added := 0
+	for _, tag := range domain.ExtractJiraTagsFromDescription(rec.Body) {
+		before := len(rec.Tags)
+		rec.Tags = domain.EnsureTag(rec.Tags, tag)
+		if len(rec.Tags) > before {
+			added++
+		}
+	}
+	return rec, added
 }
 
 // ErrAlreadyResolvedOnGitHub is returned when trying to locally resolve a
@@ -104,9 +124,20 @@ func toStoreComments(cs []githubapi.Comment) []store.Comment {
 	return out
 }
 
-func applyAutoTag(tags []string, headRefName string) []string {
-	if embedTag, ok := domain.ExtractEmbedTag(headRefName); ok {
-		return domain.EnsureTag(tags, embedTag)
+// applyBranchAutoTag ensures the branch-derived Jira issue key (if any) is
+// present in tags.
+func applyBranchAutoTag(tags []string, headRefName string) []string {
+	if jiraTag, ok := domain.ExtractJiraTag(headRefName); ok {
+		return domain.EnsureTag(tags, jiraTag)
+	}
+	return tags
+}
+
+// applyDescriptionAutoTags ensures every Jira issue key found in the PR
+// description's "Relevant Jira issue(s):" section (if any) is present in tags.
+func applyDescriptionAutoTags(tags []string, body string) []string {
+	for _, tag := range domain.ExtractJiraTagsFromDescription(body) {
+		tags = domain.EnsureTag(tags, tag)
 	}
 	return tags
 }
@@ -123,6 +154,9 @@ func NewRecord(owner, repo string, number int, detail githubapi.PRDetail) store.
 		})
 	}
 
+	tags := applyBranchAutoTag(nil, detail.HeadRefName)
+	tags = applyDescriptionAutoTags(tags, detail.Body)
+
 	return store.PRRecord{
 		Owner:              owner,
 		Repo:               repo,
@@ -133,8 +167,9 @@ func NewRecord(owner, repo string, number int, detail githubapi.PRDetail) store.
 		State:              detail.State,
 		ReviewDecision:     detail.ReviewDecision,
 		HeadRefName:        detail.HeadRefName,
+		Body:               detail.Body,
 		AuthorLogin:        detail.AuthorLogin,
-		Tags:               applyAutoTag(nil, detail.HeadRefName),
+		Tags:               tags,
 		AuthenticatedLogin: detail.AuthenticatedLogin,
 		LastSyncedAt:       time.Now(),
 		ReviewThreads:      threads,
@@ -169,6 +204,9 @@ func MergeRefresh(existing store.PRRecord, detail githubapi.PRDetail) store.PRRe
 		threads = append(threads, fresh)
 	}
 
+	tags := applyBranchAutoTag(existing.Tags, detail.HeadRefName)
+	tags = applyDescriptionAutoTags(tags, detail.Body)
+
 	return store.PRRecord{
 		Owner:              existing.Owner,
 		Repo:               existing.Repo,
@@ -179,8 +217,9 @@ func MergeRefresh(existing store.PRRecord, detail githubapi.PRDetail) store.PRRe
 		State:              detail.State,
 		ReviewDecision:     detail.ReviewDecision,
 		HeadRefName:        detail.HeadRefName,
+		Body:               detail.Body,
 		AuthorLogin:        detail.AuthorLogin,
-		Tags:               applyAutoTag(existing.Tags, detail.HeadRefName),
+		Tags:               tags,
 		AuthenticatedLogin: detail.AuthenticatedLogin,
 		LastSyncedAt:       time.Now(),
 		ReviewThreads:      threads,

@@ -68,6 +68,8 @@ const Detail = (() => {
           <input type="text" id="add-tag-input" placeholder="add tag" style="width:120px" />
           <button type="submit">+</button>
         </form>
+        <button id="btn-tag-from-description" type="button" style="margin-left:8px">Tag from description</button>
+        <span id="tag-from-description-status" class="last-synced"></span>
       </div>
 
       <div class="layout">
@@ -124,6 +126,22 @@ const Detail = (() => {
         await Api.addTag(pr.owner, pr.repo, pr.number, tag);
         await load(pr.owner, pr.repo, pr.number);
       } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    document.getElementById("btn-tag-from-description").addEventListener("click", async () => {
+      const status = document.getElementById("tag-from-description-status");
+      showError("");
+      status.textContent = "Scanning description…";
+      try {
+        const result = await Api.tagFromDescription(pr.owner, pr.repo, pr.number);
+        await TagTitles.load(); // in case a newly-found tag also matches a branch-derived title
+        render(result.pr);
+        const s = document.getElementById("tag-from-description-status");
+        if (s) s.textContent = result.added > 0 ? `Added ${result.added} tag${result.added === 1 ? "" : "s"}.` : "No new tags found.";
+      } catch (err) {
+        status.textContent = "";
         showError(err.message);
       }
     });

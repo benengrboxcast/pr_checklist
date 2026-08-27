@@ -94,6 +94,17 @@ const Settings = (() => {
         <p class="last-synced">One "owner/repo" per line, for repos outside any checked org above.</p>
         <textarea id="import-repos" rows="4" style="width:100%">${Render.escapeHtml((cfg.importRepos || []).join("\n"))}</textarea>
 
+        <h3 style="margin-top:16px">Description tagging</h3>
+        <p class="last-synced">
+          Scans every tracked PR's stored description for a "Relevant Jira issue(s):" section and tags any issue
+          keys found there. Purely additive, never removes a tag. Only sees descriptions already fetched — refresh
+          a PR first if its description changed since it was last synced.
+        </p>
+        <div style="margin-top:8px">
+          <button id="auto-tag-descriptions" type="button">Auto-tag from descriptions</button>
+        </div>
+        <div id="auto-tag-descriptions-status" class="last-synced" style="margin-top:4px"></div>
+
         <h3 style="margin-top:16px">Label titles</h3>
         <p class="last-synced">
           Custom display text shown instead of a raw label (e.g. EMBED-2575 &rarr; "Start Stop Extend").
@@ -112,6 +123,7 @@ const Settings = (() => {
   function wireUp() {
     document.getElementById("save-config").addEventListener("click", save);
     document.getElementById("auto-generate-titles").addEventListener("click", autoGenerate);
+    document.getElementById("auto-tag-descriptions").addEventListener("click", autoTagFromDescriptions);
   }
 
   async function save() {
@@ -147,6 +159,26 @@ const Settings = (() => {
       await render(); // re-render in place with the newly-filled titles, panel stays open
       const status = document.getElementById("auto-generate-status");
       if (status) status.textContent = `Added ${result.added} title${result.added === 1 ? "" : "s"}.`;
+    } catch (err) {
+      Dashboard.showError(err.message);
+    }
+  }
+
+  async function autoTagFromDescriptions() {
+    const statusBefore = document.getElementById("auto-tag-descriptions-status");
+    if (statusBefore) statusBefore.textContent = "Scanning descriptions…";
+    try {
+      const result = await Api.autoTagFromDescriptions();
+      await TagTitles.load();
+      await render(); // re-render in place; newly-found tags may show up in the Label titles list
+      const status = document.getElementById("auto-tag-descriptions-status");
+      if (status) {
+        status.textContent = `Added ${result.added} tag${result.added === 1 ? "" : "s"}.`;
+        if (result.errors && result.errors.length > 0) {
+          status.textContent += ` (${result.errors.length} error(s) — see console)`;
+          console.error("auto-tag-from-descriptions errors:", result.errors);
+        }
+      }
     } catch (err) {
       Dashboard.showError(err.message);
     }

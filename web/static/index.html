@@ -8,7 +8,13 @@
 </head>
 <body>
   <header id="site-header">
-    <span id="site-title">PR Checklist</span>
+    <div class="site-header-left">
+      <span id="site-title">PR Checklist</span>
+      <nav class="view-tabs">
+        <button id="tab-dashboard" class="view-tab" type="button">Opened by me</button>
+        <button id="tab-reviews" class="view-tab" type="button">Review requested</button>
+      </nav>
+    </div>
     <span id="viewer-badge"></span>
   </header>
   <div id="app">Loading…</div>
@@ -18,6 +24,7 @@
   <script src="/js/dashboard.js"></script>
   <script src="/js/detail.js"></script>
   <script src="/js/settings.js"></script>
+  <script src="/js/reviewrequests.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

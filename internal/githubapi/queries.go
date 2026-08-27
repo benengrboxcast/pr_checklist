@@ -11,6 +11,7 @@ query PRDetail($owner: String!, $repo: String!, $number: Int!, $threadsCursor: S
       state
       reviewDecision
       headRefName
+      body
       author { login }
       reviewThreads(first: 50, after: $threadsCursor) {
         pageInfo { hasNextPage endCursor }
@@ -58,13 +59,16 @@ query ViewerOrgs($cursor: String) {
   }
 }`
 
-const searchOpenAuthoredQuery = `
-query ImportSearch($query: String!, $cursor: String) {
+const searchQuery = `
+query Search($query: String!, $cursor: String) {
   search(query: $query, type: ISSUE, first: 50, after: $cursor) {
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest {
         number
+        title
+        url
+        state
         repository { owner { login } name }
       }
     }

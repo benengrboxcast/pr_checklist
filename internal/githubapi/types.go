@@ -41,6 +41,7 @@ type rawPullRequest struct {
 	State          string                 `json:"state"`
 	ReviewDecision string                 `json:"reviewDecision"`
 	HeadRefName    string                 `json:"headRefName"`
+	Body           string                 `json:"body"`
 	Author         actor                  `json:"author"`
 	ReviewThreads  reviewThreadConnection `json:"reviewThreads"`
 	Comments       commentConnection      `json:"comments"`
@@ -60,7 +61,10 @@ type threadCommentsResponse struct {
 }
 
 type searchNode struct {
-	Number     int `json:"number"`
+	Number     int    `json:"number"`
+	Title      string `json:"title"`
+	URL        string `json:"url"`
+	State      string `json:"state"`
 	Repository struct {
 		Owner actor  `json:"owner"`
 		Name  string `json:"name"`

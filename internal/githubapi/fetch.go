@@ -28,6 +28,7 @@ type PRDetail struct {
 	State              string
 	ReviewDecision     string
 	HeadRefName        string
+	Body               string
 	AuthorLogin        string
 	AuthenticatedLogin string
 	ReviewThreads      []ReviewThread
@@ -39,6 +40,21 @@ type PRRef struct {
 	Owner  string
 	Repo   string
 	Number int
+}
+
+// SearchResult is one hit from a GitHub PR search, with enough detail to
+// display it directly without a follow-up FetchPR call.
+type SearchResult struct {
+	Owner  string
+	Repo   string
+	Number int
+	Title  string
+	URL    string
+	State  string
+}
+
+func (r SearchResult) ref() PRRef {
+	return PRRef{Owner: r.Owner, Repo: r.Repo, Number: r.Number}
 }
 
 func toComments(nodes []rawComment) []Comment {
@@ -89,6 +105,7 @@ func (c *Client) FetchPR(ctx context.Context, owner, repo string, number int) (P
 		detail.State = pr.State
 		detail.ReviewDecision = pr.ReviewDecision
 		detail.HeadRefName = pr.HeadRefName
+		detail.Body = pr.Body
 		detail.AuthorLogin = pr.Author.Login
 		detail.AuthenticatedLogin = resp.Viewer.Login
 
@@ -156,11 +173,11 @@ func (c *Client) FetchViewer(ctx context.Context) (string, error) {
 // single repo, returning just enough to identify each PR for a follow-up FetchPR.
 func (c *Client) SearchOpenAuthoredPRs(ctx context.Context, owner, repo string) ([]PRRef, error) {
 	q := fmt.Sprintf("is:pr is:open author:@me repo:%s/%s", owner, repo)
-	refs, err := c.runOpenAuthoredSearch(ctx, q)
+	results, err := c.runSearch(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("searching %s/%s: %w", owner, repo, err)
 	}
-	return refs, nil
+	return toRefs(results), nil
 }
 
 // SearchOpenAuthoredPRsInOrg finds open PRs authored by the token's own user
@@ -168,15 +185,43 @@ func (c *Client) SearchOpenAuthoredPRs(ctx context.Context, owner, repo string) 
 // a follow-up FetchPR.
 func (c *Client) SearchOpenAuthoredPRsInOrg(ctx context.Context, org string) ([]PRRef, error) {
 	q := fmt.Sprintf("is:pr is:open author:@me org:%s", org)
-	refs, err := c.runOpenAuthoredSearch(ctx, q)
+	results, err := c.runSearch(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("searching org %s: %w", org, err)
 	}
-	return refs, nil
+	return toRefs(results), nil
 }
 
-func (c *Client) runOpenAuthoredSearch(ctx context.Context, q string) ([]PRRef, error) {
-	var refs []PRRef
+// SearchReviewRequestedPRs finds open PRs, across every repo the token can
+// see, where the token's own user currently has a pending review request.
+func (c *Client) SearchReviewRequestedPRs(ctx context.Context) ([]SearchResult, error) {
+	results, err := c.runSearch(ctx, "is:pr is:open review-requested:@me")
+	if err != nil {
+		return nil, fmt.Errorf("searching review-requested PRs: %w", err)
+	}
+	return results, nil
+}
+
+// SearchReviewedPRs finds open PRs, across every repo the token can see,
+// where the token's own user has already submitted at least one review.
+func (c *Client) SearchReviewedPRs(ctx context.Context) ([]SearchResult, error) {
+	results, err := c.runSearch(ctx, "is:pr is:open reviewed-by:@me")
+	if err != nil {
+		return nil, fmt.Errorf("searching reviewed PRs: %w", err)
+	}
+	return results, nil
+}
+
+func toRefs(results []SearchResult) []PRRef {
+	refs := make([]PRRef, 0, len(results))
+	for _, r := range results {
+		refs = append(refs, r.ref())
+	}
+	return refs
+}
+
+func (c *Client) runSearch(ctx context.Context, q string) ([]SearchResult, error) {
+	var results []SearchResult
 	var cursor string
 	for {
 		var resp searchResponse
@@ -184,18 +229,21 @@ func (c *Client) runOpenAuthoredSearch(ctx context.Context, q string) ([]PRRef, 
 		if cursor != "" {
 			vars["cursor"] = cursor
 		}
-		if err := c.Do(ctx, searchOpenAuthoredQuery, vars, &resp); err != nil {
+		if err := c.Do(ctx, searchQuery, vars, &resp); err != nil {
 			return nil, err
 		}
 		for _, n := range resp.Search.Nodes {
-			refs = append(refs, PRRef{
+			results = append(results, SearchResult{
 				Owner:  n.Repository.Owner.Login,
 				Repo:   n.Repository.Name,
 				Number: n.Number,
+				Title:  n.Title,
+				URL:    n.URL,
+				State:  n.State,
 			})
 		}
 		if !resp.Search.PageInfo.HasNextPage {
-			return refs, nil
+			return results, nil
 		}
 		cursor = resp.Search.PageInfo.EndCursor
 	}

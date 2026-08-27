@@ -36,12 +36,39 @@ body {
   padding: 16px 16px 0;
 }
 
+.site-header-left { display: flex; align-items: center; gap: 12px; }
 #site-title { font-weight: 700; }
 #viewer-badge { font-size: 13px; color: var(--text-dim); }
+
+.view-tabs { display: flex; gap: 4px; }
+.view-tab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+.view-tab:hover { border-color: var(--accent); color: var(--text); }
+.view-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 
 a { color: var(--accent); }
 
 h1, h2, h3 { line-height: 1.25; }
+
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.stats-bar .stat-total { color: var(--text-dim); font-weight: 600; }
 
 .toolbar {
   display: flex;

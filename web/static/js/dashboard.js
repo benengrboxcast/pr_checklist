@@ -47,9 +47,22 @@ const Dashboard = (() => {
     return `<div class="tag-section"><div class="tag-section-header"><h2>${headingHtml}</h2>${badge}</div>${prs.map(prCard).join("")}</div>`;
   }
 
+  function statsBarHtml(prs) {
+    const total = prs.length;
+    const needsAttention = prs.filter((pr) => pr.status === "red").length;
+    const inProgress = prs.filter((pr) => pr.status === "amber").length;
+    return `
+      <div class="stats-bar">
+        <span class="stat-total">${total} PR${total === 1 ? "" : "s"}</span>
+        <span class="badge red">${needsAttention} Needs Attention</span>
+        <span class="badge amber">${inProgress} In Progress</span>
+      </div>`;
+  }
+
   function render(prs) {
     const { groups, sortedTags, untagged } = groupByTag(prs);
     let html = `
+      ${statsBarHtml(prs)}
       <div class="toolbar">
         <form id="add-pr-form">
           <input type="url" id="add-pr-url" placeholder="https://github.com/owner/repo/pull/123" required />
