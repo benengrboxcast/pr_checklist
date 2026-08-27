@@ -1,0 +1,178 @@
+// Dashboard view: tag-grouped list of tracked PRs plus add/import/remove-closed/config actions.
+const Dashboard = (() => {
+  function groupByTag(prs) {
+    const groups = new Map();
+    const untagged = [];
+    for (const pr of prs) {
+      if (!pr.tags || pr.tags.length === 0) {
+        untagged.push(pr);
+        continue;
+      }
+      for (const tag of pr.tags) {
+        if (!groups.has(tag)) groups.set(tag, []);
+        groups.get(tag).push(pr);
+      }
+    }
+    const sortedTags = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    return { groups, sortedTags, untagged };
+  }
+
+  function prCard(pr) {
+    const link = `#/pr/${encodeURIComponent(pr.owner)}/${encodeURIComponent(pr.repo)}/${pr.number}`;
+    return `
+      <div class="pr-card" data-owner="${Render.escapeHtml(pr.owner)}" data-repo="${Render.escapeHtml(pr.repo)}" data-number="${pr.number}">
+        <div class="pr-main">
+          <a class="pr-title" href="${link}">${Render.escapeHtml(pr.title)}</a>
+          <div class="pr-meta">
+            ${Render.escapeHtml(pr.owner)}/${Render.escapeHtml(pr.repo)}#${pr.number}
+            · ${pr.threadCounts.total} thread${pr.threadCounts.total === 1 ? "" : "s"}
+            · synced ${Render.formatDate(pr.lastSyncedAt)}
+            ${Render.renderTags(pr.tags)}
+          </div>
+        </div>
+        ${Render.statusBadge(pr.status)}
+        <div class="pr-actions">
+          <button class="js-remove" title="Remove from dashboard">Remove</button>
+        </div>
+      </div>`;
+  }
+
+  function section(title, prs) {
+    if (prs.length === 0) return "";
+    return `<div class="tag-section"><h2>${Render.escapeHtml(title)}</h2>${prs.map(prCard).join("")}</div>`;
+  }
+
+  function render(prs) {
+    const { groups, sortedTags, untagged } = groupByTag(prs);
+    let html = `
+      <h1>PR Checklist</h1>
+      <div class="toolbar">
+        <form id="add-pr-form">
+          <input type="url" id="add-pr-url" placeholder="https://github.com/owner/repo/pull/123" required />
+          <button type="submit" class="primary">Add PR</button>
+        </form>
+        <button id="btn-import">Import my open PRs</button>
+        <button id="btn-remove-closed" class="danger">Remove closed</button>
+        <button id="btn-settings">Settings</button>
+      </div>
+      <div id="dashboard-error" class="error-banner"></div>
+      <div id="settings-panel" style="display:none"></div>
+    `;
+
+    if (prs.length === 0) {
+      html += `<p class="empty">No PRs tracked yet. Paste a PR URL above, or use Import.</p>`;
+    } else {
+      for (const tag of sortedTags) html += section(tag, groups.get(tag));
+      html += section("Untagged", untagged);
+    }
+
+    document.getElementById("app").innerHTML = html;
+    wireUp();
+  }
+
+  function showError(msg) {
+    document.getElementById("dashboard-error").textContent = msg || "";
+  }
+
+  async function reload() {
+    try {
+      const prs = await Api.listPRs();
+      render(prs);
+    } catch (e) {
+      document.getElementById("app").innerHTML = `<div class="error-banner">Failed to load: ${Render.escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  function wireUp() {
+    document.getElementById("add-pr-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("add-pr-url");
+      showError("");
+      try {
+        await Api.addPR(input.value.trim());
+        await reload();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    document.getElementById("btn-import").addEventListener("click", async () => {
+      showError("");
+      try {
+        const result = await Api.importPRs();
+        await reload();
+        if (result.errors && result.errors.length > 0) {
+          showError(`Import finished with errors: ${result.errors.join("; ")}`);
+        }
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    document.getElementById("btn-remove-closed").addEventListener("click", async () => {
+      if (!confirm("Remove every tracked PR that is closed or merged?")) return;
+      showError("");
+      try {
+        await Api.bulkRemoveClosed();
+        await reload();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    document.getElementById("btn-settings").addEventListener("click", toggleSettings);
+
+    document.querySelectorAll(".js-remove").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const card = btn.closest(".pr-card");
+        const { owner, repo, number } = card.dataset;
+        if (!confirm(`Remove ${owner}/${repo}#${number} from the dashboard? This permanently deletes its local data.`)) return;
+        showError("");
+        try {
+          await Api.deletePR(owner, repo, Number(number));
+          await reload();
+        } catch (err) {
+          showError(err.message);
+        }
+      });
+    });
+  }
+
+  async function toggleSettings() {
+    const panel = document.getElementById("settings-panel");
+    if (panel.style.display !== "none") {
+      panel.style.display = "none";
+      panel.innerHTML = "";
+      return;
+    }
+    try {
+      const cfg = await Api.getConfig();
+      panel.innerHTML = `
+        <div class="side-panel">
+          <h3>Import repo allow-list</h3>
+          <p class="last-synced">One "owner/repo" per line. Import only searches these repos for your open PRs.</p>
+          <textarea id="import-repos" rows="4" style="width:100%">${Render.escapeHtml((cfg.importRepos || []).join("\n"))}</textarea>
+          <div style="margin-top:8px"><button id="save-config" class="primary">Save</button></div>
+        </div>`;
+      panel.style.display = "block";
+      document.getElementById("save-config").addEventListener("click", async () => {
+        const repos = document
+          .getElementById("import-repos")
+          .value.split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        try {
+          await Api.putConfig(repos);
+          panel.style.display = "none";
+          panel.innerHTML = "";
+        } catch (err) {
+          showError(err.message);
+        }
+      });
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  return { reload };
+})();

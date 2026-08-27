@@ -1,0 +1,161 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2e38;
+  --text: #e6e8ec;
+  --text-dim: #9aa1ac;
+  --accent: #4f8cff;
+
+  --gray: #6b7280;
+  --red: #ef4444;
+  --green: #22c55e;
+  --amber: #f59e0b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+a { color: var(--accent); }
+
+h1, h2, h3 { line-height: 1.25; }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.toolbar form {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 260px;
+}
+
+input[type="text"], input[type="url"] {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+
+button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--accent); }
+button.danger:hover { border-color: var(--red); }
+button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+
+.tag-section { margin-bottom: 28px; }
+.tag-section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 10px; }
+
+.pr-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  margin-bottom: 8px;
+}
+
+.pr-card .pr-main { flex: 1; min-width: 0; }
+.pr-card .pr-title { font-weight: 600; text-decoration: none; color: var(--text); }
+.pr-card .pr-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.pr-card .pr-actions { display: flex; gap: 6px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+.badge.gray  { color: var(--gray);  background: rgba(107,114,128,0.15); }
+.badge.red   { color: var(--red);   background: rgba(239,68,68,0.15); }
+.badge.green { color: var(--green); background: rgba(34,197,94,0.15); }
+.badge.amber { color: var(--amber); background: rgba(245,158,11,0.15); }
+
+.tag-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(79,140,255,0.15);
+  color: var(--accent);
+  margin-right: 4px;
+  text-decoration: none;
+}
+.tag-chip.removable::after { content: " ×"; opacity: 0.6; }
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.status-bar .counts { display: flex; gap: 14px; font-size: 13px; color: var(--text-dim); }
+.status-bar.gray  { border-color: var(--gray); }
+.status-bar.red   { border-color: var(--red); }
+.status-bar.green { border-color: var(--green); }
+.status-bar.amber { border-color: var(--amber); }
+
+.layout { display: flex; gap: 20px; align-items: flex-start; }
+.layout .main { flex: 2; min-width: 0; }
+.layout .side { flex: 1; min-width: 240px; }
+
+.thread {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: var(--panel);
+}
+.thread .thread-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.thread .comment { padding: 8px 0; border-top: 1px solid var(--border); }
+.thread .comment:first-child { border-top: none; }
+.comment .author { font-weight: 600; font-size: 13px; }
+.comment .body { font-size: 13px; color: var(--text-dim); white-space: pre-wrap; }
+
+.side-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel);
+}
+.side-panel h3 { margin-top: 0; font-size: 13px; text-transform: uppercase; color: var(--text-dim); }
+
+.empty { color: var(--text-dim); font-style: italic; padding: 20px 0; }
+.back-link { display: inline-block; margin-bottom: 16px; }
+.error-banner { color: var(--red); margin-bottom: 12px; }
+.last-synced { font-size: 12px; color: var(--text-dim); }
