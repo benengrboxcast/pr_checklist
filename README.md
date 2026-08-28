@@ -18,6 +18,7 @@ Single Go binary, embedded frontend, no database. All state is plain JSON files 
 - Manual refresh only — no background polling.
 - Bulk "Remove closed" to clear out closed/merged PRs from the dashboard.
 - Two tabs next to the "PR Checklist" title — **Opened by me** and **Review requested** — switch between the dashboard and a live list of open PRs where you've been asked to review, or that you've already reviewed; whichever is showing is highlighted. See [Review requested view](#review-requested-view).
+- The dashboard's stats bar has an **All / Not Approved / Needs Attention** filter that narrows which PRs are listed below (the stats themselves always reflect every tracked PR, regardless of the active filter).
 
 ## Requirements
 

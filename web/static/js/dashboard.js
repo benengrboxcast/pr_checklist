@@ -1,5 +1,14 @@
 // Dashboard view: tag-grouped list of tracked PRs plus add/import/remove-closed/config actions.
 const Dashboard = (() => {
+  const FILTERS = {
+    all: { label: "All", match: () => true },
+    "not-approved": { label: "Not Approved", match: (pr) => pr.status !== "green" },
+    "needs-attention": { label: "Needs Attention", match: (pr) => pr.status === "red" },
+  };
+
+  let currentFilter = "all";
+  let lastPRs = []; // last full (unfiltered) list loaded, so switching filters doesn't need a refetch
+
   function groupByTag(prs) {
     const groups = new Map();
     const untagged = [];
@@ -47,20 +56,31 @@ const Dashboard = (() => {
     return `<div class="tag-section"><div class="tag-section-header"><h2>${headingHtml}</h2>${badge}</div>${prs.map(prCard).join("")}</div>`;
   }
 
+  // Stats always reflect the full, unfiltered list — the filter buttons only
+  // narrow what's rendered below, they don't change what the counts mean.
   function statsBarHtml(prs) {
     const total = prs.length;
     const needsAttention = prs.filter((pr) => pr.status === "red").length;
     const inProgress = prs.filter((pr) => pr.status === "amber").length;
+    const filterButtons = Object.entries(FILTERS)
+      .map(
+        ([key, f]) => `
+        <button class="view-tab filter-btn${key === currentFilter ? " active" : ""}" data-filter="${key}" type="button">${f.label}</button>`
+      )
+      .join("");
     return `
       <div class="stats-bar">
         <span class="stat-total">${total} PR${total === 1 ? "" : "s"}</span>
         <span class="badge red">${needsAttention} Needs Attention</span>
         <span class="badge amber">${inProgress} In Progress</span>
+        <div class="filter-group">${filterButtons}</div>
       </div>`;
   }
 
   function render(prs) {
-    const { groups, sortedTags, untagged } = groupByTag(prs);
+    lastPRs = prs;
+    const filtered = prs.filter(FILTERS[currentFilter].match);
+    const { groups, sortedTags, untagged } = groupByTag(filtered);
     let html = `
       ${statsBarHtml(prs)}
       <div class="toolbar">
@@ -78,6 +98,8 @@ const Dashboard = (() => {
 
     if (prs.length === 0) {
       html += `<p class="empty">No PRs tracked yet. Paste a PR URL above, or use Import.</p>`;
+    } else if (filtered.length === 0) {
+      html += `<p class="empty">No PRs match the "${FILTERS[currentFilter].label}" filter.</p>`;
     } else {
       for (const tag of sortedTags) html += section(Render.renderTagTitleLink(tag), groups.get(tag));
       html += section(Render.escapeHtml("Untagged"), untagged);
@@ -101,6 +123,13 @@ const Dashboard = (() => {
   }
 
   function wireUp() {
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentFilter = btn.dataset.filter;
+        render(lastPRs); // re-render from the already-loaded list, no refetch needed
+      });
+    });
+
     document.getElementById("add-pr-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const input = document.getElementById("add-pr-url");

@@ -69,6 +69,8 @@ h1, h2, h3 { line-height: 1.25; }
   font-size: 13px;
 }
 .stats-bar .stat-total { color: var(--text-dim); font-weight: 600; }
+.stats-bar .filter-group { display: flex; gap: 4px; margin-left: auto; }
+.stats-bar .filter-btn { padding: 4px 10px; font-size: 12px; }
 
 .toolbar {
   display: flex;
