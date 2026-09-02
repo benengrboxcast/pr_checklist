@@ -18,6 +18,8 @@ type PRRecord struct {
 	AuthorLogin    string `json:"authorLogin"`
 	Body           string `json:"body"` // raw PR description, used to find Jira issue keys in it
 
+	Labels []string `json:"labels"` // GitHub's own PR labels — read-only mirror of GitHub, distinct from Tags below
+
 	Tags               []string  `json:"tags"`
 	AuthenticatedLogin string    `json:"authenticatedLogin"`
 	LastSyncedAt       time.Time `json:"lastSyncedAt"`
@@ -46,7 +48,8 @@ type Comment struct {
 
 // Config is the user-editable import allow-list, stored separately from PR records.
 type Config struct {
-	ImportRepos []string          `json:"importRepos"`
-	ImportOrgs  []string          `json:"importOrgs"` // org logins to import every authored-open PR from
-	TagTitles   map[string]string `json:"tagTitles"`  // tag -> custom display title, shown instead of the raw tag
+	ImportRepos      []string          `json:"importRepos"`
+	ImportOrgs       []string          `json:"importOrgs"`       // org logins to import every authored-open PR from
+	TagTitles        map[string]string `json:"tagTitles"`        // tag -> custom display title, shown instead of the raw tag
+	IgnoredReviewPRs []string          `json:"ignoredReviewPRs"` // "owner/repo#number" keys marked ignored in the Review Requested view
 }

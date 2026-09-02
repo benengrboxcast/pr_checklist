@@ -79,6 +79,31 @@ const Render = (() => {
     return display;
   }
 
+  // The subset of GitHub PR labels our workflow cares about. The dashboard
+  // only surfaces these three (to avoid cluttering PR cards with every label
+  // a repo happens to use); the detail page shows all of a PR's labels.
+  const WORKFLOW_LABELS = ["in-review", "in-dev", "verified-in-dev"];
+
+  // Slugifies a label name into a CSS class suffix, e.g. "verified-in-dev" ->
+  // "label-verified-in-dev". The three WORKFLOW_LABELS have dedicated color
+  // rules in style.css; any other label just falls back to .label-chip's
+  // neutral outline style since no matching rule exists for its slug.
+  function labelClass(name) {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `label-chip label-${slug}`;
+  }
+
+  // Renders GitHub's own PR labels (read-only — distinct from this app's
+  // editable tags) as chips. Pass onlyKnown:true to show only the
+  // WORKFLOW_LABELS subset (used on the dashboard).
+  function renderLabels(labels, opts) {
+    opts = opts || {};
+    if (!labels || labels.length === 0) return "";
+    const shown = opts.onlyKnown ? labels.filter((l) => WORKFLOW_LABELS.includes(l)) : labels;
+    if (shown.length === 0) return "";
+    return shown.map((l) => `<span class="${labelClass(l)}">${escapeHtml(l)}</span>`).join(" ");
+  }
+
   function formatDate(iso) {
     if (!iso) return "never";
     const d = new Date(iso);
@@ -86,5 +111,17 @@ const Render = (() => {
     return d.toLocaleString();
   }
 
-  return { escapeHtml, statusBadge, statusLabel, groupStatus, threadStateLabel, renderTag, renderTags, renderTagLink, renderTagTitleLink, formatDate };
+  return {
+    escapeHtml,
+    statusBadge,
+    statusLabel,
+    groupStatus,
+    threadStateLabel,
+    renderTag,
+    renderTags,
+    renderTagLink,
+    renderTagTitleLink,
+    renderLabels,
+    formatDate,
+  };
 })();

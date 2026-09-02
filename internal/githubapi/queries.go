@@ -13,6 +13,9 @@ query PRDetail($owner: String!, $repo: String!, $number: Int!, $threadsCursor: S
       headRefName
       body
       author { login }
+      labels(first: 20) {
+        nodes { name }
+      }
       reviewThreads(first: 50, after: $threadsCursor) {
         pageInfo { hasNextPage endCursor }
         nodes {
@@ -69,6 +72,7 @@ query Search($query: String!, $cursor: String) {
         title
         url
         state
+        createdAt
         repository { owner { login } name }
       }
     }

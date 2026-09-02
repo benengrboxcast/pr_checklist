@@ -9,6 +9,13 @@ const Dashboard = (() => {
   let currentFilter = "all";
   let lastPRs = []; // last full (unfiltered) list loaded, so switching filters doesn't need a refetch
 
+  let bulkMode = false;
+  let selectedKeys = new Set(); // "owner/repo/number" keys, since a multi-tagged PR can appear in several sections
+
+  function keyOf(pr) {
+    return `${pr.owner}/${pr.repo}/${pr.number}`;
+  }
+
   function groupByTag(prs) {
     const groups = new Map();
     const untagged = [];
@@ -28,8 +35,14 @@ const Dashboard = (() => {
 
   function prCard(pr) {
     const link = `#/pr/${encodeURIComponent(pr.owner)}/${encodeURIComponent(pr.repo)}/${pr.number}`;
+    const key = keyOf(pr);
+    const checkbox = bulkMode
+      ? `<input type="checkbox" class="bulk-select" data-key="${Render.escapeHtml(key)}" ${selectedKeys.has(key) ? "checked" : ""} />`
+      : "";
     return `
       <div class="pr-card" data-owner="${Render.escapeHtml(pr.owner)}" data-repo="${Render.escapeHtml(pr.repo)}" data-number="${pr.number}">
+        <div class="pr-labels-col">${Render.renderLabels(pr.labels, { onlyKnown: true })}</div>
+        ${checkbox}
         <div class="pr-main">
           <a class="pr-title" href="${link}">${Render.escapeHtml(pr.title)}</a>
           <div class="pr-meta">
@@ -77,6 +90,17 @@ const Dashboard = (() => {
       </div>`;
   }
 
+  function bulkBarHtml() {
+    return `
+      <div class="bulk-bar">
+        <span id="bulk-count">${selectedKeys.size} selected</span>
+        <button id="bulk-select-all" type="button">Select all</button>
+        <button id="bulk-clear-selection" type="button">Clear</button>
+        <input type="text" id="bulk-tag-input" placeholder="tag to apply" />
+        <button id="bulk-apply" class="primary" type="button">Apply tag</button>
+      </div>`;
+  }
+
   function render(prs) {
     lastPRs = prs;
     const filtered = prs.filter(FILTERS[currentFilter].match);
@@ -90,8 +114,10 @@ const Dashboard = (() => {
         </form>
         <button id="btn-import">Import my open PRs</button>
         <button id="btn-remove-closed" class="danger">Remove closed</button>
+        <button id="btn-bulk-toggle" class="${bulkMode ? "active" : ""}">${bulkMode ? "Exit bulk edit" : "Bulk edit"}</button>
         <button id="btn-settings">Settings</button>
       </div>
+      ${bulkMode ? bulkBarHtml() : ""}
       <div id="dashboard-error" class="error-banner"></div>
       <div id="settings-panel" style="display:none"></div>
     `;
@@ -120,6 +146,13 @@ const Dashboard = (() => {
     } catch (e) {
       document.getElementById("app").innerHTML = `<div class="error-banner">Failed to load: ${Render.escapeHtml(e.message)}</div>`;
     }
+  }
+
+  // Updates just the "N selected" count in place, without a full re-render,
+  // so ticking checkboxes stays snappy while selecting many PRs.
+  function updateBulkCount() {
+    const el = document.getElementById("bulk-count");
+    if (el) el.textContent = `${selectedKeys.size} selected`;
   }
 
   function wireUp() {
@@ -170,6 +203,12 @@ const Dashboard = (() => {
 
     document.getElementById("btn-settings").addEventListener("click", Settings.toggle);
 
+    document.getElementById("btn-bulk-toggle").addEventListener("click", () => {
+      bulkMode = !bulkMode;
+      selectedKeys.clear();
+      render(lastPRs);
+    });
+
     document.querySelectorAll(".js-remove").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const card = btn.closest(".pr-card");
@@ -183,6 +222,65 @@ const Dashboard = (() => {
           showError(err.message);
         }
       });
+    });
+
+    if (!bulkMode) return;
+
+    // A PR with several tags renders once per tag section, so keep every
+    // checkbox for the same PR in sync with each other.
+    document.querySelectorAll(".bulk-select").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const key = cb.dataset.key;
+        if (cb.checked) selectedKeys.add(key);
+        else selectedKeys.delete(key);
+        document.querySelectorAll(`.bulk-select[data-key="${CSS.escape(key)}"]`).forEach((other) => {
+          other.checked = cb.checked;
+        });
+        updateBulkCount();
+      });
+    });
+
+    document.getElementById("bulk-select-all").addEventListener("click", () => {
+      document.querySelectorAll(".bulk-select").forEach((cb) => {
+        cb.checked = true;
+        selectedKeys.add(cb.dataset.key);
+      });
+      updateBulkCount();
+    });
+
+    document.getElementById("bulk-clear-selection").addEventListener("click", () => {
+      selectedKeys.clear();
+      document.querySelectorAll(".bulk-select").forEach((cb) => (cb.checked = false));
+      updateBulkCount();
+    });
+
+    document.getElementById("bulk-apply").addEventListener("click", async () => {
+      const tag = document.getElementById("bulk-tag-input").value.trim();
+      if (!tag) {
+        showError("Enter a tag to apply.");
+        return;
+      }
+      if (selectedKeys.size === 0) {
+        showError("Select at least one PR first.");
+        return;
+      }
+      const prs = Array.from(selectedKeys).map((key) => {
+        const [owner, repo, number] = key.split("/");
+        return { owner, repo, number: Number(number) };
+      });
+      showError("");
+      try {
+        const result = await Api.bulkTag(prs, tag);
+        await TagTitles.load();
+        bulkMode = false;
+        selectedKeys.clear();
+        await reload();
+        if (result.errors && result.errors.length > 0) {
+          showError(`Tagged ${result.updated} PR${result.updated === 1 ? "" : "s"}, with errors: ${result.errors.join("; ")}`);
+        }
+      } catch (err) {
+        showError(err.message);
+      }
     });
   }
 

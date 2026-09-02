@@ -17,6 +17,8 @@ Single Go binary, embedded frontend, no database. All state is plain JSON files 
 - Status badge (per PR, and on the dashboard) is gray "Closed" (closed/merged), red "Needs Attention" (unresolved threads or changes requested), green "Approved" (fully resolved and approved), or amber "In Progress" (anything in between).
 - Manual refresh only — no background polling.
 - Bulk "Remove closed" to clear out closed/merged PRs from the dashboard.
+- **Bulk edit** mode: check any number of PRs (respects the active filter, and a multi-tagged PR's checkboxes stay in sync across every section it appears in) and apply one tag to all of them at once.
+- **GitHub labels** (distinct from this app's own tags above — read-only, mirrored straight from the PR on GitHub): the dashboard reserves a fixed-width column on the left of every PR card for the workflow's three labels — `in-review` (dark blue), `in-dev` (dark green), `verified-in-dev` (white) — so cards line up whether or not a given PR has one. The PR detail page shows *all* of a PR's GitHub labels, not just those three, using the same colors for the workflow ones and a neutral outline for anything else.
 - Two tabs next to the "PR Checklist" title — **Opened by me** and **Review requested** — switch between the dashboard and a live list of open PRs where you've been asked to review, or that you've already reviewed; whichever is showing is highlighted. See [Review requested view](#review-requested-view).
 - The dashboard's stats bar has an **All / Not Approved / Needs Attention** filter that narrows which PRs are listed below (the stats themselves always reflect every tracked PR, regardless of the active filter).
 
@@ -108,9 +110,12 @@ Click the **Review requested** tab next to the "PR Checklist" title — a list o
 
 This view is intentionally simple and separate from the tracked-PR dashboard:
 
-- **Not stored locally at all.** It's a live GitHub search (`review-requested:@me` and `reviewed-by:@me`) run fresh every time you open the view or click Refresh — no JSON file, no tags, no thread tracking, no config. It also isn't scoped by the Import repo/org allow-list, since a colleague could ask you to review a PR in any repo you have access to.
-- Two states only: 🟡 **Review Requested** (you currently have a pending review request) and 🟢 **Reviewed** (you've already submitted a review and there's no new pending request). If you reviewed a PR before and were re-requested after new commits, it shows as Review Requested again — that's the current actionable state.
+- **Not stored locally at all**, with one exception (ignoring, below). It's a live GitHub search (`review-requested:@me` and `reviewed-by:@me`) run fresh every time you open the view or click Refresh — no JSON file, no tags, no thread tracking. It also isn't scoped by the Import repo/org allow-list, since a colleague could ask you to review a PR in any repo you have access to.
+- Three states: 🟡 **Review Requested** (you currently have a pending review request), 🟢 **Reviewed** (you've already submitted a review and there's no new pending request), and ⚪ **Ignored** (see below). If you reviewed a PR before and were re-requested after new commits, it shows as Review Requested again — that's the current actionable state.
+- Sorted first by state — Review Requested, then Reviewed, then Ignored — and within each group, oldest PR first.
 - Each entry links straight to the PR on GitHub rather than into this app's detail view, since these PRs aren't tracked records here.
+
+**Ignoring a PR**: click a 🟡 **Review Requested** badge to mark it ⚪ **Ignored** — a way to say "I'm not going to review this one." This is a purely local UI marker: it never calls GitHub, never removes you as a reviewer, and doesn't submit anything. An ignored PR stays in the list (just greyed out) and is excluded from the "Need Your Review" count in the stats bar. Click the ⚪ **Ignored** badge again to un-ignore it and go back to reflecting its live GitHub state. The ignored list is the one thing this view persists, stored in `config.json`'s `ignoredReviewPRs`.
 
 ## Development
 

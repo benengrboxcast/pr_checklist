@@ -20,6 +20,8 @@ const Api = (() => {
 
   const prPath = (owner, repo, number) =>
     `/api/prs/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${number}`;
+  const reviewRequestPath = (owner, repo, number) =>
+    `/api/review-requests/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${number}`;
 
   return {
     listPRs: () => request("GET", "/api/prs"),
@@ -35,15 +37,19 @@ const Api = (() => {
     unresolveThread: (owner, repo, number, threadId) =>
       request("POST", `${prPath(owner, repo, number)}/threads/${encodeURIComponent(threadId)}/unresolve`),
     addTag: (owner, repo, number, tag) => request("POST", `${prPath(owner, repo, number)}/tags`, { tag }),
+    bulkTag: (prs, tag) => request("POST", "/api/prs/bulk-tag", { prs, tag }),
     removeTag: (owner, repo, number, tag) =>
       request("DELETE", `${prPath(owner, repo, number)}/tags/${encodeURIComponent(tag)}`),
     tagFromDescription: (owner, repo, number) => request("POST", `${prPath(owner, repo, number)}/tag-from-description`),
     autoTagFromDescriptions: () => request("POST", "/api/prs/auto-tag-from-descriptions"),
     getConfig: () => request("GET", "/api/config"),
-    putConfig: (importRepos, importOrgs, tagTitles) => request("PUT", "/api/config", { importRepos, importOrgs, tagTitles }),
+    putConfig: (importRepos, importOrgs, tagTitles, ignoredReviewPRs) =>
+      request("PUT", "/api/config", { importRepos, importOrgs, tagTitles, ignoredReviewPRs }),
     autoGenerateTagTitles: () => request("POST", "/api/config/auto-generate-titles"),
     getViewer: () => request("GET", "/api/viewer"),
     getOrgs: () => request("GET", "/api/orgs"),
     getReviewRequests: () => request("GET", "/api/review-requests"),
+    ignoreReviewRequest: (owner, repo, number) => request("POST", `${reviewRequestPath(owner, repo, number)}/ignore`),
+    unignoreReviewRequest: (owner, repo, number) => request("POST", `${reviewRequestPath(owner, repo, number)}/unignore`),
   };
 })();

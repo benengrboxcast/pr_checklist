@@ -3,6 +3,7 @@ package githubapi
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // Comment is a normalized comment (review-thread or top-level).
@@ -31,6 +32,7 @@ type PRDetail struct {
 	Body               string
 	AuthorLogin        string
 	AuthenticatedLogin string
+	Labels             []string // GitHub's own PR labels, read-only from this app's perspective
 	ReviewThreads      []ReviewThread
 	Comments           []Comment
 }
@@ -45,12 +47,13 @@ type PRRef struct {
 // SearchResult is one hit from a GitHub PR search, with enough detail to
 // display it directly without a follow-up FetchPR call.
 type SearchResult struct {
-	Owner  string
-	Repo   string
-	Number int
-	Title  string
-	URL    string
-	State  string
+	Owner     string
+	Repo      string
+	Number    int
+	Title     string
+	URL       string
+	State     string
+	CreatedAt string // RFC3339
 }
 
 func (r SearchResult) ref() PRRef {
@@ -108,6 +111,10 @@ func (c *Client) FetchPR(ctx context.Context, owner, repo string, number int) (P
 		detail.Body = pr.Body
 		detail.AuthorLogin = pr.Author.Login
 		detail.AuthenticatedLogin = resp.Viewer.Login
+		detail.Labels = make([]string, 0, len(pr.Labels.Nodes))
+		for _, l := range pr.Labels.Nodes {
+			detail.Labels = append(detail.Labels, l.Name)
+		}
 
 		for _, rt := range pr.ReviewThreads.Nodes {
 			thread := ReviewThread{
@@ -234,12 +241,13 @@ func (c *Client) runSearch(ctx context.Context, q string) ([]SearchResult, error
 		}
 		for _, n := range resp.Search.Nodes {
 			results = append(results, SearchResult{
-				Owner:  n.Repository.Owner.Login,
-				Repo:   n.Repository.Name,
-				Number: n.Number,
-				Title:  n.Title,
-				URL:    n.URL,
-				State:  n.State,
+				Owner:     n.Repository.Owner.Login,
+				Repo:      n.Repository.Name,
+				Number:    n.Number,
+				Title:     n.Title,
+				URL:       n.URL,
+				State:     n.State,
+				CreatedAt: n.CreatedAt.Format(time.RFC3339),
 			})
 		}
 		if !resp.Search.PageInfo.HasNextPage {

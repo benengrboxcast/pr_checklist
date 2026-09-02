@@ -34,6 +34,14 @@ type reviewThreadConnection struct {
 	Nodes    []rawReviewThread `json:"nodes"`
 }
 
+type rawLabel struct {
+	Name string `json:"name"`
+}
+
+type labelConnection struct {
+	Nodes []rawLabel `json:"nodes"`
+}
+
 type rawPullRequest struct {
 	ID             string                 `json:"id"`
 	Title          string                 `json:"title"`
@@ -43,6 +51,7 @@ type rawPullRequest struct {
 	HeadRefName    string                 `json:"headRefName"`
 	Body           string                 `json:"body"`
 	Author         actor                  `json:"author"`
+	Labels         labelConnection        `json:"labels"`
 	ReviewThreads  reviewThreadConnection `json:"reviewThreads"`
 	Comments       commentConnection      `json:"comments"`
 }
@@ -61,10 +70,11 @@ type threadCommentsResponse struct {
 }
 
 type searchNode struct {
-	Number     int    `json:"number"`
-	Title      string `json:"title"`
-	URL        string `json:"url"`
-	State      string `json:"state"`
+	Number     int       `json:"number"`
+	Title      string    `json:"title"`
+	URL        string    `json:"url"`
+	State      string    `json:"state"`
+	CreatedAt  time.Time `json:"createdAt"`
 	Repository struct {
 		Owner actor  `json:"owner"`
 		Name  string `json:"name"`

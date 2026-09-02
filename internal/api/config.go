@@ -30,6 +30,9 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	if cfg.TagTitles == nil {
 		cfg.TagTitles = map[string]string{}
 	}
+	if cfg.IgnoredReviewPRs == nil {
+		cfg.IgnoredReviewPRs = []string{}
+	}
 	if err := s.Store.SaveConfig(cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

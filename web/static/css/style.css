@@ -107,6 +107,36 @@ button {
 button:hover { border-color: var(--accent); }
 button.danger:hover { border-color: var(--red); }
 button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+button.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.bulk-bar #bulk-count { color: var(--text-dim); font-weight: 600; margin-right: 4px; }
+.bulk-bar input[type="text"] { flex: 1; min-width: 160px; }
+
+.pr-card .bulk-select { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* Reserved on every card, whether or not this PR has any workflow labels, so
+   cards without labels still leave the same whitespace and everything else
+   lines up in a consistent left-hand column across the dashboard. */
+.pr-labels-col {
+  width: 110px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.pr-labels-col .label-chip { margin-right: 0; }
 
 .tag-section { margin-bottom: 28px; }
 .tag-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -146,6 +176,12 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .badge.green { color: var(--green); background: rgba(34,197,94,0.15); }
 .badge.amber { color: var(--amber); background: rgba(245,158,11,0.15); }
 
+/* Only reset font-family (browser buttons default to a UA control font) —
+   not the whole `font` shorthand, which would also reset the size/weight
+   `.badge` sets above and make these look bigger than the plain-span badges. */
+.badge-toggle { border: none; cursor: pointer; font-family: inherit; }
+.badge-toggle:hover { filter: brightness(1.3); }
+
 .tag-chip {
   display: inline-block;
   padding: 2px 8px;
@@ -157,6 +193,24 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   text-decoration: none;
 }
 .tag-chip.removable::after { content: " ×"; opacity: 0.6; }
+
+/* GitHub's own PR labels — outlined/neutral so they read as read-only info,
+   distinct from the filled, accent-colored .tag-chip (this app's editable tags). */
+.label-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+/* Workflow-specific label colors */
+.label-in-review       { background: #0d2b52; color: #8ecbff; border-color: #0d2b52; }
+.label-in-dev          { background: #0d3323; color: #8fe3b0; border-color: #0d3323; }
+.label-verified-in-dev { background: #ffffff; color: #000000; border-color: #ffffff; }
 
 .status-bar {
   display: flex;

@@ -48,6 +48,8 @@ const Detail = (() => {
         · by ${Render.escapeHtml(pr.authorLogin)}
       </p>
 
+      ${pr.labels && pr.labels.length ? `<p class="pr-meta">GitHub labels: ${Render.renderLabels(pr.labels)}</p>` : ""}
+
       <div id="detail-error" class="error-banner"></div>
 
       <div class="status-bar ${pr.status}">

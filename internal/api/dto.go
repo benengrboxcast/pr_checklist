@@ -32,6 +32,7 @@ type PRSummaryDTO struct {
 	State          string              `json:"state"`
 	ReviewDecision string              `json:"reviewDecision"`
 	Tags           []string            `json:"tags"`
+	Labels         []string            `json:"labels"` // GitHub's own PR labels, read-only
 	Status         domain.Status       `json:"status"`
 	ThreadCounts   domain.ThreadCounts `json:"threadCounts"`
 	LastSyncedAt   time.Time           `json:"lastSyncedAt"`
@@ -64,6 +65,7 @@ func toSummaryDTO(rec store.PRRecord) PRSummaryDTO {
 		State:          rec.State,
 		ReviewDecision: rec.ReviewDecision,
 		Tags:           rec.Tags,
+		Labels:         rec.Labels,
 		Status:         domain.ComputePRStatus(rec),
 		ThreadCounts:   domain.CountThreads(rec),
 		LastSyncedAt:   rec.LastSyncedAt,

@@ -1,6 +1,8 @@
 // Settings panel: org checklist + repo allow-list for Import, and per-tag
 // display titles (with an auto-generate action). Lives on the dashboard view.
 const Settings = (() => {
+  let lastConfig = {}; // stashed so save() can pass through fields this panel doesn't edit (e.g. ignoredReviewPRs)
+
   function panelEl() {
     return document.getElementById("settings-panel");
   }
@@ -33,6 +35,7 @@ const Settings = (() => {
     let cfg, prs;
     try {
       [cfg, prs] = await Promise.all([Api.getConfig(), Api.listPRs()]);
+      lastConfig = cfg;
     } catch (err) {
       Dashboard.showError(err.message);
       close();
@@ -141,7 +144,7 @@ const Settings = (() => {
 
     Dashboard.showError("");
     try {
-      await Api.putConfig(repos, selectedOrgs, tagTitles);
+      await Api.putConfig(repos, selectedOrgs, tagTitles, lastConfig.ignoredReviewPRs || []);
       await TagTitles.load();
       close();
       await Dashboard.reload();
