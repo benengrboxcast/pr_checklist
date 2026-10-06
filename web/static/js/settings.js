@@ -87,6 +87,8 @@ const Settings = (() => {
           .join("")
       : `<p class="last-synced">No labels yet.</p>`;
 
+    const repoGroupsHtml = (cfg.repoGroups || []).map(groupRowHtml).join("");
+
     return `
       <div class="side-panel">
         <h3>Import from orgs</h3>
@@ -119,14 +121,48 @@ const Settings = (() => {
         </div>
         <div id="auto-generate-status" class="last-synced" style="margin-top:4px"></div>
 
+        <h3 style="margin-top:16px">Repo groups</h3>
+        <p class="last-synced">
+          Dashboard sections at the end of the page, grouping PRs by which repo they're in. A PR still also
+          shows up under its usual tag section(s) — repo groups are additional, not exclusive. One repo per
+          line, as "owner/repo" (e.g. <code>boxcast/vision-ui</code>) or a full GitHub URL — either works.
+        </p>
+        <div id="repo-groups-list">${repoGroupsHtml}</div>
+        <div style="margin-top:8px">
+          <button id="add-repo-group" type="button">+ Add group</button>
+        </div>
+
         <div style="margin-top:16px"><button id="save-config" class="primary">Save</button></div>
       </div>`;
+  }
+
+  function groupRowHtml(group) {
+    return `
+      <div class="repo-group-row">
+        <div class="repo-group-row-header">
+          <input type="text" class="repo-group-name" placeholder="Group name" value="${Render.escapeHtml(group.name || "")}" />
+          <button type="button" class="repo-group-remove" title="Remove group">Remove</button>
+        </div>
+        <textarea class="repo-group-repos" rows="3" placeholder="owner/repo or full github.com URL, one per line">${Render.escapeHtml((group.repos || []).join("\n"))}</textarea>
+      </div>`;
+  }
+
+  function wireRepoGroupRemoveButtons() {
+    document.querySelectorAll(".repo-group-remove").forEach((btn) => {
+      btn.onclick = () => btn.closest(".repo-group-row").remove();
+    });
   }
 
   function wireUp() {
     document.getElementById("save-config").addEventListener("click", save);
     document.getElementById("auto-generate-titles").addEventListener("click", autoGenerate);
     document.getElementById("auto-tag-descriptions").addEventListener("click", autoTagFromDescriptions);
+
+    document.getElementById("add-repo-group").addEventListener("click", () => {
+      document.getElementById("repo-groups-list").insertAdjacentHTML("beforeend", groupRowHtml({ name: "", repos: [] }));
+      wireRepoGroupRemoveButtons();
+    });
+    wireRepoGroupRemoveButtons();
   }
 
   async function save() {
@@ -142,10 +178,23 @@ const Settings = (() => {
       if (v) tagTitles[el.dataset.tag] = v;
     });
 
+    const repoGroups = [];
+    document.querySelectorAll(".repo-group-row").forEach((row) => {
+      const name = row.querySelector(".repo-group-name").value.trim();
+      const groupRepos = row
+        .querySelector(".repo-group-repos")
+        .value.split("\n")
+        .map((s) => Render.normalizeRepoSlug(s))
+        .filter(Boolean);
+      if (!name && groupRepos.length === 0) return; // skip a blank row added but never filled in
+      repoGroups.push({ name, repos: groupRepos });
+    });
+
     Dashboard.showError("");
     try {
-      await Api.putConfig(repos, selectedOrgs, tagTitles, lastConfig.ignoredReviewPRs || []);
+      await Api.putConfig(repos, selectedOrgs, tagTitles, lastConfig.ignoredReviewPRs || [], repoGroups);
       await TagTitles.load();
+      await RepoGroups.load();
       close();
       await Dashboard.reload();
     } catch (err) {

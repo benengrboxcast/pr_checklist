@@ -109,6 +109,22 @@ button.danger:hover { border-color: var(--red); }
 button.primary { background: var(--accent); border-color: var(--accent); color: white; }
 button.active { background: var(--accent); border-color: var(--accent); color: white; }
 
+/* Progress fill for the "Updating…" state of #btn-update: an absolutely
+   positioned bar behind the label that animates its width left-to-right. */
+#btn-update { position: relative; overflow: hidden; }
+#btn-update .btn-label { position: relative; z-index: 1; }
+.btn-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  background: var(--accent);
+  opacity: 0.4;
+  transition: width 0.4s ease;
+  z-index: 0;
+}
+
 .bulk-bar {
   display: flex;
   flex-wrap: wrap;
@@ -251,6 +267,16 @@ button.active { background: var(--accent); border-color: var(--accent); color: w
   background: var(--panel);
 }
 .side-panel h3 { margin-top: 0; font-size: 13px; text-transform: uppercase; color: var(--text-dim); }
+
+.repo-group-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.repo-group-row-header { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.repo-group-row-header .repo-group-name { flex: 1; }
+.repo-group-row textarea.repo-group-repos { width: 100%; }
 
 .empty { color: var(--text-dim); font-style: italic; padding: 20px 0; }
 .back-link { display: inline-block; margin-bottom: 16px; }

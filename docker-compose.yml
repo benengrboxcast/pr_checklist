@@ -1,0 +1,10 @@
+services:
+  pr-checklist:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:?set GITHUB_TOKEN in .env or the environment}
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

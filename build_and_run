@@ -1,0 +1,3 @@
+go build -o pr-checklist ./cmd/server
+DATA_DIR=./data ./pr-checklist &
+

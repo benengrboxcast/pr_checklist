@@ -6,7 +6,13 @@ const Dashboard = (() => {
     "needs-attention": { label: "Needs Attention", match: (pr) => pr.status === "red" },
   };
 
+  const GROUP_MODES = {
+    tag: { label: "By Tag" },
+    repo: { label: "By Repo" },
+  };
+
   let currentFilter = "all";
+  let groupMode = "tag";
   let lastPRs = []; // last full (unfiltered) list loaded, so switching filters doesn't need a refetch
 
   let bulkMode = false;
@@ -59,6 +65,38 @@ const Dashboard = (() => {
       </div>`;
   }
 
+  // Groups every PR by its actual GitHub repo (owner/repo), one section per
+  // repo actually present, sorted by "owner/repo". Distinct from the
+  // user-defined named repo groups in Settings (groupByRepoGroup below) —
+  // this is the "By Repo" view toggle, automatic and covering every repo.
+  function groupByRepo(prs) {
+    const map = new Map();
+    for (const pr of prs) {
+      const key = `${pr.owner}/${pr.repo}`;
+      if (!map.has(key)) map.set(key, { owner: pr.owner, repo: pr.repo, prs: [] });
+      map.get(key).prs.push(pr);
+    }
+    return Array.from(map.values()).sort((a, b) => `${a.owner}/${a.repo}`.localeCompare(`${b.owner}/${b.repo}`));
+  }
+
+  function repoHeadingHtml(owner, repo) {
+    const url = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`;
+    return `<a href="${url}" target="_blank" rel="noopener">${Render.escapeHtml(owner)}/${Render.escapeHtml(repo)}</a>`;
+  }
+
+  // Matches each user-defined repo group (Settings) against prs, case-
+  // insensitively on "owner/repo". Sorted by group name, and always placed
+  // at the end of the dashboard, after every tag section and Untagged.
+  function groupByRepoGroup(prs) {
+    return RepoGroups.get()
+      .map((g) => {
+        const repoSet = new Set((g.repos || []).map((r) => Render.normalizeRepoSlug(r).toLowerCase()).filter(Boolean));
+        const matched = prs.filter((pr) => repoSet.has(`${pr.owner}/${pr.repo}`.toLowerCase()));
+        return { name: g.name, prs: matched };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   // headingHtml is pre-rendered (e.g. via Render.renderTagTitleLink, which
   // already escapes and optionally Jira-links it) rather than raw text. The
   // section also gets its own badge aggregating every PR's status in it.
@@ -81,12 +119,19 @@ const Dashboard = (() => {
         <button class="view-tab filter-btn${key === currentFilter ? " active" : ""}" data-filter="${key}" type="button">${f.label}</button>`
       )
       .join("");
+    const groupButtons = Object.entries(GROUP_MODES)
+      .map(
+        ([key, g]) => `
+        <button class="view-tab filter-btn group-mode-btn${key === groupMode ? " active" : ""}" data-group="${key}" type="button">${g.label}</button>`
+      )
+      .join("");
     return `
       <div class="stats-bar">
         <span class="stat-total">${total} PR${total === 1 ? "" : "s"}</span>
         <span class="badge red">${needsAttention} Needs Attention</span>
         <span class="badge amber">${inProgress} In Progress</span>
         <div class="filter-group">${filterButtons}</div>
+        <div class="filter-group">${groupButtons}</div>
       </div>`;
   }
 
@@ -112,7 +157,7 @@ const Dashboard = (() => {
           <input type="url" id="add-pr-url" placeholder="https://github.com/owner/repo/pull/123" required />
           <button type="submit" class="primary">Add PR</button>
         </form>
-        <button id="btn-import">Import my open PRs</button>
+        <button id="btn-update">Update</button>
         <button id="btn-remove-closed" class="danger">Remove closed</button>
         <button id="btn-bulk-toggle" class="${bulkMode ? "active" : ""}">${bulkMode ? "Exit bulk edit" : "Bulk edit"}</button>
         <button id="btn-settings">Settings</button>
@@ -123,12 +168,15 @@ const Dashboard = (() => {
     `;
 
     if (prs.length === 0) {
-      html += `<p class="empty">No PRs tracked yet. Paste a PR URL above, or use Import.</p>`;
+      html += `<p class="empty">No PRs tracked yet. Paste a PR URL above, or click Update to pull in your open PRs.</p>`;
     } else if (filtered.length === 0) {
       html += `<p class="empty">No PRs match the "${FILTERS[currentFilter].label}" filter.</p>`;
+    } else if (groupMode === "repo") {
+      for (const g of groupByRepo(filtered)) html += section(repoHeadingHtml(g.owner, g.repo), g.prs);
     } else {
       for (const tag of sortedTags) html += section(Render.renderTagTitleLink(tag), groups.get(tag));
       html += section(Render.escapeHtml("Untagged"), untagged);
+      for (const g of groupByRepoGroup(filtered)) html += section(Render.escapeHtml(g.name), g.prs);
     }
 
     document.getElementById("app").innerHTML = html;
@@ -155,11 +203,24 @@ const Dashboard = (() => {
     if (el) el.textContent = `${selectedKeys.size} selected`;
   }
 
+  // Grows the "Updating…" button's fill bar to pct%, animated via CSS transition.
+  function setUpdateProgress(pct) {
+    const fill = document.getElementById("btn-update-fill");
+    if (fill) fill.style.width = `${pct}%`;
+  }
+
   function wireUp() {
-    document.querySelectorAll(".filter-btn").forEach((btn) => {
+    document.querySelectorAll(".filter-btn:not(.group-mode-btn)").forEach((btn) => {
       btn.addEventListener("click", () => {
         currentFilter = btn.dataset.filter;
         render(lastPRs); // re-render from the already-loaded list, no refetch needed
+      });
+    });
+
+    document.querySelectorAll(".group-mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        groupMode = btn.dataset.group;
+        render(lastPRs);
       });
     });
 
@@ -176,17 +237,38 @@ const Dashboard = (() => {
       }
     });
 
-    document.getElementById("btn-import").addEventListener("click", async () => {
+    document.getElementById("btn-update").addEventListener("click", async () => {
       showError("");
+      const btn = document.getElementById("btn-update");
+      btn.disabled = true;
+      // The fill starts at a non-zero width set directly in its initial markup
+      // (rather than 0% + a rAF-driven bump) so it still shows progress even
+      // if the tab is backgrounded during the update — requestAnimationFrame
+      // callbacks are throttled/paused in background tabs, but plain style
+      // changes tied to promise resolutions below aren't.
+      btn.innerHTML = `<span class="btn-progress-fill" id="btn-update-fill" style="width:8%"></span><span class="btn-label">Updating…</span>`;
       try {
+        // Refresh every already-tracked PR's state, then pull in any newly
+        // opened PRs — in that order so a freshly-imported PR isn't
+        // redundantly re-fetched a second time by refresh-all. The bar's two
+        // steps mirror these two real phases, not a fake timer.
+        await Api.refreshAll();
+        setUpdateProgress(55);
         const result = await Api.importPRs();
-        await TagTitles.load(); // pick up any titles auto-derived from imported PRs' branch names
+        setUpdateProgress(100);
+        await TagTitles.load(); // pick up any titles auto-derived from refreshed/imported PRs' branch names
         await reload();
         if (result.errors && result.errors.length > 0) {
-          showError(`Import finished with errors: ${result.errors.join("; ")}`);
+          showError(`Update finished with errors: ${result.errors.join("; ")}`);
         }
       } catch (err) {
         showError(err.message);
+      } finally {
+        const stillThere = document.getElementById("btn-update");
+        if (stillThere) {
+          stillThere.disabled = false;
+          stillThere.textContent = "Update";
+        }
       }
     });
 

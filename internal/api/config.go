@@ -33,6 +33,14 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	if cfg.IgnoredReviewPRs == nil {
 		cfg.IgnoredReviewPRs = []string{}
 	}
+	if cfg.RepoGroups == nil {
+		cfg.RepoGroups = []store.RepoGroup{}
+	}
+	for i, g := range cfg.RepoGroups {
+		if g.Repos == nil {
+			cfg.RepoGroups[i].Repos = []string{}
+		}
+	}
 	if err := s.Store.SaveConfig(cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

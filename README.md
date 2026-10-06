@@ -6,7 +6,7 @@ Single Go binary, embedded frontend, no database. All state is plain JSON files 
 
 ## Features
 
-- Add a PR by pasting its URL, or use **Import** to pull in your own open PRs from a configured list of repos and/or a checklist of GitHub orgs you belong to.
+- Add a PR by pasting its URL, or click **Update** to refresh every already-tracked PR's state and pull in any newly opened PRs from a configured list of repos and/or a checklist of GitHub orgs you belong to.
 - Group tracked PRs by tag on the dashboard (a PR can have any number of tags).
 - Branches starting with a Jira-style issue key (2-10 uppercase letters, a hyphen, then digits — e.g. `EMBED-1234`, `PROJ-42`) are auto-tagged with that key, and any tag of that shape links out to `https://boxcast.atlassian.net/browse/<tag>`.
 - A PR's description is also scanned for a "Relevant Jira issue(s):" section, and every issue key found there is auto-tagged too — see [Description tagging](#description-tagging).
@@ -21,6 +21,8 @@ Single Go binary, embedded frontend, no database. All state is plain JSON files 
 - **GitHub labels** (distinct from this app's own tags above — read-only, mirrored straight from the PR on GitHub): the dashboard reserves a fixed-width column on the left of every PR card for the workflow's three labels — `in-review` (dark blue), `in-dev` (dark green), `verified-in-dev` (white) — so cards line up whether or not a given PR has one. The PR detail page shows *all* of a PR's GitHub labels, not just those three, using the same colors for the workflow ones and a neutral outline for anything else.
 - Two tabs next to the "PR Checklist" title — **Opened by me** and **Review requested** — switch between the dashboard and a live list of open PRs where you've been asked to review, or that you've already reviewed; whichever is showing is highlighted. See [Review requested view](#review-requested-view).
 - The dashboard's stats bar has an **All / Not Approved / Needs Attention** filter that narrows which PRs are listed below (the stats themselves always reflect every tracked PR, regardless of the active filter).
+- The stats bar also has a **By Tag / By Repo** toggle: **By Tag** is the usual tag-grouped view (plus Untagged and any repo groups from Settings); **By Repo** instead groups every PR by its actual GitHub repo, one section per repo, sorted alphabetically, with each section heading linking out to that repo's `/pulls` page on GitHub.
+- **Repo groups**: define named groups in Settings, each listing one or more `owner/repo` entries. Every tracked PR whose repo is in a group shows up in that group's own section at the very end of the dashboard, after every tag section and Untagged — in addition to (not instead of) its usual tag-based placement.
 
 ## Requirements
 
@@ -53,6 +55,17 @@ Then open http://localhost:8080.
 
 ## Running in Docker
 
+### Docker Compose (recommended)
+
+```bash
+cp .env.example .env   # then edit .env and set GITHUB_TOKEN
+docker compose up -d
+```
+
+This builds the image and runs it in the background, listening on http://localhost:8080. `docker-compose.yml` mounts `./data` for persistent storage and reads `GITHUB_TOKEN` from `.env` (or the environment). To rebuild after pulling code changes: `docker compose up -d --build`. To stop it: `docker compose down`.
+
+### Plain `docker run`
+
 Build the image:
 
 ```bash
@@ -69,7 +82,7 @@ State (tracked PRs, tags, local resolve status, the import repo allow-list) live
 
 ## Configuring Import
 
-The **Import** button on the dashboard searches your configured repos and orgs for your own open PRs and adds any not already tracked. Configure this from the dashboard's **Settings** panel:
+The **Update** button on the dashboard does two things in one click: it refreshes every already-tracked PR from GitHub (equivalent to refreshing each one individually), then searches your configured repos and orgs for your own open PRs and adds any not already tracked. Configure the search scope from the dashboard's **Settings** panel:
 
 - **Import from orgs** — a checklist of every GitHub org your token's user belongs to (fetched live from GitHub). Checking an org imports your open PRs from *every* repo in it. Seeing this list requires the token to have the `read:org` scope; without it (or for orgs where you only have public, non-visible membership) the checklist may come back empty or fail to load — the repo allow-list below still works either way.
 - **Import repo allow-list** — individual `owner/repo` entries, for repos outside any checked org.

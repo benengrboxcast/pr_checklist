@@ -104,6 +104,19 @@ const Render = (() => {
     return shown.map((l) => `<span class="${labelClass(l)}">${escapeHtml(l)}</span>`).join(" ");
   }
 
+  // Normalizes a repo reference down to "owner/repo", accepting a plain
+  // "owner/repo" slug or a full GitHub URL (with or without protocol/www/
+  // .git suffix/trailing slash) — since pasting a URL straight from the
+  // browser's address bar is the natural thing to do, not just typing the
+  // short form. Case is left as-is; comparisons should lowercase separately.
+  function normalizeRepoSlug(raw) {
+    return String(raw)
+      .trim()
+      .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
+      .replace(/\.git$/i, "")
+      .replace(/\/+$/, "");
+  }
+
   function formatDate(iso) {
     if (!iso) return "never";
     const d = new Date(iso);
@@ -122,6 +135,7 @@ const Render = (() => {
     renderTagLink,
     renderTagTitleLink,
     renderLabels,
+    normalizeRepoSlug,
     formatDate,
   };
 })();

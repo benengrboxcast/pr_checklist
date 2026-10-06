@@ -43,8 +43,8 @@ const Api = (() => {
     tagFromDescription: (owner, repo, number) => request("POST", `${prPath(owner, repo, number)}/tag-from-description`),
     autoTagFromDescriptions: () => request("POST", "/api/prs/auto-tag-from-descriptions"),
     getConfig: () => request("GET", "/api/config"),
-    putConfig: (importRepos, importOrgs, tagTitles, ignoredReviewPRs) =>
-      request("PUT", "/api/config", { importRepos, importOrgs, tagTitles, ignoredReviewPRs }),
+    putConfig: (importRepos, importOrgs, tagTitles, ignoredReviewPRs, repoGroups) =>
+      request("PUT", "/api/config", { importRepos, importOrgs, tagTitles, ignoredReviewPRs, repoGroups }),
     autoGenerateTagTitles: () => request("POST", "/api/config/auto-generate-titles"),
     getViewer: () => request("GET", "/api/viewer"),
     getOrgs: () => request("GET", "/api/orgs"),

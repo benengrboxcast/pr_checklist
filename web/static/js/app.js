@@ -49,8 +49,8 @@
 
   window.addEventListener("hashchange", route);
   window.addEventListener("DOMContentLoaded", async () => {
-    loadViewerBadge(); // independent of tag titles; don't block the first render on it
-    await TagTitles.load();
+    loadViewerBadge(); // independent of tag titles/repo groups; don't block the first render on it
+    await Promise.all([TagTitles.load(), RepoGroups.load()]);
     route();
   });
 })();

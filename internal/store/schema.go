@@ -52,4 +52,13 @@ type Config struct {
 	ImportOrgs       []string          `json:"importOrgs"`       // org logins to import every authored-open PR from
 	TagTitles        map[string]string `json:"tagTitles"`        // tag -> custom display title, shown instead of the raw tag
 	IgnoredReviewPRs []string          `json:"ignoredReviewPRs"` // "owner/repo#number" keys marked ignored in the Review Requested view
+	RepoGroups       []RepoGroup       `json:"repoGroups"`       // dashboard sections grouping PRs by which repo they're in
+}
+
+// RepoGroup is a user-defined dashboard section: every tracked PR whose
+// "owner/repo" is in Repos shows up under this group's Name, at the end of
+// the dashboard, alongside (not instead of) its usual tag sections.
+type RepoGroup struct {
+	Name  string   `json:"name"`
+	Repos []string `json:"repos"` // "owner/repo" entries
 }
