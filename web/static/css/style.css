@@ -156,7 +156,7 @@ button.active { background: var(--accent); border-color: var(--accent); color: w
 
 .tag-section { margin-bottom: 28px; }
 .tag-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.tag-section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0; }
+.tag-section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 0; }
 
 .pr-card {
   display: flex;
