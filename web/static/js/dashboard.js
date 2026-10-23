@@ -14,6 +14,7 @@ const Dashboard = (() => {
   let currentFilter = "all";
   let groupMode = "tag";
   let lastPRs = []; // last full (unfiltered) list loaded, so switching filters doesn't need a refetch
+  let listableSections = []; // {heading, prs} per section rendered with a "list prs" link, rebuilt on every render
 
   let bulkMode = false;
   let selectedKeys = new Set(); // "owner/repo/number" keys, since a multi-tagged PR can appear in several sections
@@ -100,11 +101,62 @@ const Dashboard = (() => {
   // headingHtml is pre-rendered (e.g. via Render.renderTagTitleLink, which
   // already escapes and optionally Jira-links it) rather than raw text. The
   // section also gets its own badge aggregating every PR's status in it.
-  function section(headingHtml, prs) {
+  //
+  // With opts.listable (tag sections), the header also gets a PR-count badge
+  // and a right-aligned "list prs" link that opens a copyable list of the
+  // section's PR URLs; the section's PRs are stashed in listableSections so
+  // the click handler can look them up by index.
+  function section(headingHtml, prs, opts = {}) {
     if (prs.length === 0) return "";
     const status = Render.groupStatus(prs);
     const badge = status ? Render.statusBadge(status) : "";
-    return `<div class="tag-section"><div class="tag-section-header"><h2>${headingHtml}</h2>${badge}</div>${prs.map(prCard).join("")}</div>`;
+    let listing = "";
+    if (opts.listable) {
+      const idx = listableSections.push({ heading: opts.listTitle, prs }) - 1;
+      listing = `<span class="badge count" title="PRs in this section">${prs.length}</span>
+        <a href="#" class="list-prs-link" data-section="${idx}">list prs</a>`;
+    }
+    return `<div class="tag-section"><div class="tag-section-header"><h2>${headingHtml}</h2>${badge}${listing}</div>${prs.map(prCard).join("")}</div>`;
+  }
+
+  function prUrl(pr) {
+    return `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.number}`;
+  }
+
+  // Shows a modal with one PR URL per line in a readonly textarea, ready to
+  // paste into Slack (which auto-links bare URLs), plus a Copy button.
+  function showPRListDialog(heading, prs) {
+    const text = prs.map(prUrl).join("\n");
+    const dlg = document.createElement("dialog");
+    dlg.className = "pr-list-dialog";
+    dlg.innerHTML = `
+      <h3>${Render.escapeHtml(heading)} · ${prs.length} PR${prs.length === 1 ? "" : "s"}</h3>
+      <textarea readonly rows="${Math.min(Math.max(prs.length, 3), 15)}"></textarea>
+      <div class="pr-list-dialog-actions">
+        <span class="pr-list-copied"></span>
+        <button type="button" class="primary js-copy">Copy</button>
+        <button type="button" class="js-close">Close</button>
+      </div>`;
+    const ta = dlg.querySelector("textarea");
+    ta.value = text;
+    dlg.querySelector(".js-close").addEventListener("click", () => dlg.close());
+    dlg.querySelector(".js-copy").addEventListener("click", async () => {
+      const note = dlg.querySelector(".pr-list-copied");
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_) {
+        ta.select(); // clipboard API unavailable (e.g. non-secure origin); fall back to the legacy command
+        document.execCommand("copy");
+      }
+      note.textContent = "Copied!";
+    });
+    dlg.addEventListener("click", (e) => {
+      if (e.target === dlg) dlg.close(); // backdrop click
+    });
+    dlg.addEventListener("close", () => dlg.remove());
+    document.body.appendChild(dlg);
+    dlg.showModal();
+    ta.select();
   }
 
   // Stats always reflect the full, unfiltered list — the filter buttons only
@@ -148,6 +200,7 @@ const Dashboard = (() => {
 
   function render(prs) {
     lastPRs = prs;
+    listableSections = [];
     const filtered = prs.filter(FILTERS[currentFilter].match);
     const { groups, sortedTags, untagged } = groupByTag(filtered);
     let html = `
@@ -174,7 +227,9 @@ const Dashboard = (() => {
     } else if (groupMode === "repo") {
       for (const g of groupByRepo(filtered)) html += section(repoHeadingHtml(g.owner, g.repo), g.prs);
     } else {
-      for (const tag of sortedTags) html += section(Render.renderTagTitleLink(tag), groups.get(tag));
+      for (const tag of sortedTags) {
+        html += section(Render.renderTagTitleLink(tag), groups.get(tag), { listable: true, listTitle: TagTitles.get(tag) });
+      }
       html += section(Render.escapeHtml("Untagged"), untagged);
       for (const g of groupByRepoGroup(filtered)) html += section(Render.escapeHtml(g.name), g.prs);
     }
@@ -284,6 +339,14 @@ const Dashboard = (() => {
     });
 
     document.getElementById("btn-settings").addEventListener("click", Settings.toggle);
+
+    document.querySelectorAll(".list-prs-link").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const s = listableSections[Number(a.dataset.section)];
+        if (s) showPRListDialog(s.heading, s.prs);
+      });
+    });
 
     document.getElementById("btn-bulk-toggle").addEventListener("click", () => {
       bulkMode = !bulkMode;
