@@ -219,6 +219,7 @@ button.active { background: var(--accent); border-color: var(--accent); color: w
   resize: vertical;
 }
 .pr-list-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.ticket-list { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.7; }
 .pr-list-copied { margin-right: auto; font-size: 12px; color: var(--green); }
 
 /* Only reset font-family (browser buttons default to a UA control font) —

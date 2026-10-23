@@ -15,6 +15,8 @@ const Dashboard = (() => {
   let groupMode = "tag";
   let lastPRs = []; // last full (unfiltered) list loaded, so switching filters doesn't need a refetch
   let listableSections = []; // {heading, prs} per section rendered with a "list prs" link, rebuilt on every render
+  let ticketSections = []; // {title, tags} per section merged from several Jira tickets, rebuilt on every render
+  const JIRA_TAG_RE = /^[A-Z]{2,10}-\d+$/;
 
   let bulkMode = false;
   let selectedKeys = new Set(); // "owner/repo/number" keys, since a multi-tagged PR can appear in several sections
@@ -23,8 +25,13 @@ const Dashboard = (() => {
     return `${pr.owner}/${pr.repo}/${pr.number}`;
   }
 
+  // Groups PRs by tag *display title* rather than raw tag, so auto-created tags
+  // that share a title (e.g. EMBED-2645_record-only and EMBED-2646_record-only
+  // both titled "Record Only") collapse into one section. Each section is
+  // {title, tags, prs}: tags are the distinct raw tags merged into it, and a PR
+  // carrying several of them is listed once.
   function groupByTag(prs) {
-    const groups = new Map();
+    const byTitle = new Map();
     const untagged = [];
     for (const pr of prs) {
       if (!pr.tags || pr.tags.length === 0) {
@@ -32,12 +39,27 @@ const Dashboard = (() => {
         continue;
       }
       for (const tag of pr.tags) {
-        if (!groups.has(tag)) groups.set(tag, []);
-        groups.get(tag).push(pr);
+        const title = TagTitles.get(tag);
+        const key = title.trim().toLowerCase();
+        if (!byTitle.has(key)) byTitle.set(key, { title, tags: [], prs: [] });
+        const g = byTitle.get(key);
+        if (!g.tags.includes(tag)) g.tags.push(tag);
+        if (!g.prs.includes(pr)) g.prs.push(pr);
       }
     }
-    const sortedTags = Array.from(groups.keys()).sort((a, b) => TagTitles.get(a).localeCompare(TagTitles.get(b)));
-    return { groups, sortedTags, untagged };
+    const sections = Array.from(byTitle.values()).sort((a, b) => a.title.localeCompare(b.title));
+    return { sections, untagged };
+  }
+
+  // Heading for a tag section. A section merged from several Jira tickets has
+  // no single issue to link to, so its title opens a dialog listing them all
+  // (stashed in ticketSections, looked up by index in wireUp); otherwise it
+  // keeps the usual direct Jira link.
+  function tagHeadingHtml(g) {
+    const jiraTags = g.tags.filter((t) => JIRA_TAG_RE.test(t));
+    if (jiraTags.length < 2) return Render.renderTagTitleLink(jiraTags[0] || g.tags[0]);
+    const idx = ticketSections.push({ title: g.title, tags: jiraTags }) - 1;
+    return `<a href="#" class="tickets-link" data-section="${idx}" title="${jiraTags.length} Jira tickets">${Render.escapeHtml(g.title)}</a>`;
   }
 
   function prCard(pr) {
@@ -159,6 +181,25 @@ const Dashboard = (() => {
     ta.select();
   }
 
+  // Shows a modal linking to every Jira ticket merged into a tag section.
+  function showTicketsDialog(title, tags) {
+    const dlg = document.createElement("dialog");
+    dlg.className = "pr-list-dialog";
+    dlg.innerHTML = `
+      <h3>${Render.escapeHtml(title)} · ${tags.length} Jira tickets</h3>
+      <ul class="ticket-list">${tags.map((t) => `<li>${Render.renderTagLink(t)}</li>`).join("")}</ul>
+      <div class="pr-list-dialog-actions">
+        <button type="button" class="js-close">Close</button>
+      </div>`;
+    dlg.querySelector(".js-close").addEventListener("click", () => dlg.close());
+    dlg.addEventListener("click", (e) => {
+      if (e.target === dlg) dlg.close(); // backdrop click
+    });
+    dlg.addEventListener("close", () => dlg.remove());
+    document.body.appendChild(dlg);
+    dlg.showModal();
+  }
+
   // Stats always reflect the full, unfiltered list — the filter buttons only
   // narrow what's rendered below, they don't change what the counts mean.
   function statsBarHtml(prs) {
@@ -201,8 +242,9 @@ const Dashboard = (() => {
   function render(prs) {
     lastPRs = prs;
     listableSections = [];
+    ticketSections = [];
     const filtered = prs.filter(FILTERS[currentFilter].match);
-    const { groups, sortedTags, untagged } = groupByTag(filtered);
+    const { sections, untagged } = groupByTag(filtered);
     let html = `
       ${statsBarHtml(prs)}
       <div class="toolbar">
@@ -227,8 +269,8 @@ const Dashboard = (() => {
     } else if (groupMode === "repo") {
       for (const g of groupByRepo(filtered)) html += section(repoHeadingHtml(g.owner, g.repo), g.prs);
     } else {
-      for (const tag of sortedTags) {
-        html += section(Render.renderTagTitleLink(tag), groups.get(tag), { listable: true, listTitle: TagTitles.get(tag) });
+      for (const g of sections) {
+        html += section(tagHeadingHtml(g), g.prs, { listable: true, listTitle: g.title });
       }
       html += section(Render.escapeHtml("Untagged"), untagged);
       for (const g of groupByRepoGroup(filtered)) html += section(Render.escapeHtml(g.name), g.prs);
@@ -345,6 +387,14 @@ const Dashboard = (() => {
         e.preventDefault();
         const s = listableSections[Number(a.dataset.section)];
         if (s) showPRListDialog(s.heading, s.prs);
+      });
+    });
+
+    document.querySelectorAll(".tickets-link").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const s = ticketSections[Number(a.dataset.section)];
+        if (s) showTicketsDialog(s.title, s.tags);
       });
     });
 
